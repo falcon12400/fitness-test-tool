@@ -1,18 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import RadarChart from "./RadarChart";
 import { exportWorkbook, importWorkbook } from "./excel";
 import { defaultAppData } from "./sample-data";
 import { loadAppData, saveAppData } from "./storage";
 import type { AppData, FitnessField, FitnessRecord } from "./types";
 
-type TabKey = "records" | "editor" | "analysis" | "transfer" | "docs";
+type TabKey =
+  | "records"
+  | "table"
+  | "editor"
+  | "analysis"
+  | "transfer"
+  | "docs";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "records", label: "資料列表" },
-  { key: "editor", label: "資料編輯" },
+  { key: "table", label: "資料表編輯" },
+  { key: "editor", label: "單筆編輯" },
   { key: "analysis", label: "雷達圖分析" },
   { key: "transfer", label: "匯入匯出" },
   { key: "docs", label: "規格說明" },
+];
+
+const scoreFields: FitnessField[] = [
+  "item1",
+  "item2",
+  "item3",
+  "item4",
+  "item5",
+  "item6",
 ];
 
 function makeEmptyRecord(): FitnessRecord {
@@ -41,6 +58,11 @@ function upsertRecord(records: FitnessRecord[], nextRecord: FitnessRecord) {
   );
 }
 
+function normalizeNumber(value: string): number {
+  const nextValue = Number(value);
+  return Number.isFinite(nextValue) ? nextValue : 0;
+}
+
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadAppData() ?? defaultAppData);
   const [activeTab, setActiveTab] = useState<TabKey>("records");
@@ -60,6 +82,12 @@ export default function App() {
     [data.records, selectedId],
   );
 
+  useEffect(() => {
+    if (selectedRecord) {
+      setDraftRecord(selectedRecord);
+    }
+  }, [selectedRecord]);
+
   const filteredRecords = useMemo(() => {
     const normalized = searchText.trim().toLowerCase();
     if (!normalized) {
@@ -72,7 +100,9 @@ export default function App() {
   }, [data.records, searchText]);
 
   function startCreate(): void {
-    setDraftRecord(makeEmptyRecord());
+    const nextRecord = makeEmptyRecord();
+    setDraftRecord(nextRecord);
+    setSelectedId("");
     setActiveTab("editor");
     setMessage("已切換到新增模式。");
   }
@@ -102,6 +132,7 @@ export default function App() {
       ...draftRecord,
       studentName: draftRecord.studentName.trim(),
     };
+
     const nextRecords = upsertRecord(data.records, normalized);
     setData((current) => ({ ...current, records: nextRecords }));
     setSelectedId(normalized.id);
@@ -116,16 +147,70 @@ export default function App() {
       return;
     }
 
-    const nextRecords = data.records.filter((record) => record.id !== selectedRecord.id);
+    const nextRecords = data.records.filter(
+      (record) => record.id !== selectedRecord.id,
+    );
     setData((current) => ({ ...current, records: nextRecords }));
-    const nextSelected = nextRecords[0] ?? makeEmptyRecord();
     setSelectedId(nextRecords[0]?.id ?? "");
-    setDraftRecord(nextSelected);
+    setDraftRecord(nextRecords[0] ?? makeEmptyRecord());
     setMessage("資料已刪除。");
   }
 
+  function addTableRow(): void {
+    const nextRecord = makeEmptyRecord();
+    setData((current) => ({
+      ...current,
+      records: [nextRecord, ...current.records],
+    }));
+    setSelectedId(nextRecord.id);
+    setDraftRecord(nextRecord);
+    setMessage("已新增一筆空白資料。");
+  }
+
+  function deleteTableRow(recordId: string): void {
+    const nextRecords = data.records.filter((record) => record.id !== recordId);
+    setData((current) => ({
+      ...current,
+      records: nextRecords,
+    }));
+
+    if (selectedId === recordId) {
+      setSelectedId(nextRecords[0]?.id ?? "");
+      setDraftRecord(nextRecords[0] ?? makeEmptyRecord());
+    }
+
+    setMessage("已從資料表移除一筆資料。");
+  }
+
+  function updateTableField(
+    recordId: string,
+    field: keyof FitnessRecord,
+    value: string,
+  ): void {
+    setData((current) => ({
+      ...current,
+      records: current.records.map((record) => {
+        if (record.id !== recordId) {
+          return record;
+        }
+
+        if (scoreFields.includes(field as FitnessField)) {
+          return {
+            ...record,
+            [field]: normalizeNumber(value),
+          };
+        }
+
+        return {
+          ...record,
+          [field]: value,
+        };
+      }),
+    }));
+  }
+
   async function handleImportChange(
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: ChangeEvent<HTMLInputElement>,
   ): Promise<void> {
     const file = event.target.files?.[0];
     if (!file) {
@@ -160,8 +245,21 @@ export default function App() {
   }
 
   function updateScore(field: FitnessField, value: string): void {
-    const nextValue = Number(value);
-    updateDraftField(field, Number.isFinite(nextValue) ? nextValue : 0);
+    updateDraftField(field, normalizeNumber(value));
+  }
+
+  function getTopLabel(record: FitnessRecord): string {
+    const values = [
+      record.item1,
+      record.item2,
+      record.item3,
+      record.item4,
+      record.item5,
+      record.item6,
+    ];
+    const maxValue = Math.max(...values);
+    const maxIndex = values.indexOf(maxValue);
+    return data.itemLabels[maxIndex] ?? "未設定";
   }
 
   return (
@@ -277,7 +375,7 @@ export default function App() {
                       }}
                       type="button"
                     >
-                      編輯資料
+                      單筆編輯
                     </button>
                     <button
                       className="secondary-button"
@@ -295,41 +393,166 @@ export default function App() {
           </>
         ) : null}
 
+        {activeTab === "table" ? (
+          <>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>資料表編輯</h2>
+                  <p>可直接逐格編輯所有學生資料，適合一次整理整班成績。</p>
+                </div>
+                <div className="button-row">
+                  <button
+                    className="primary-button"
+                    onClick={addTableRow}
+                    type="button"
+                  >
+                    新增列
+                  </button>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table className="table-editor">
+                  <thead>
+                    <tr>
+                      <th>選取</th>
+                      <th>學生姓名</th>
+                      <th>測驗日期</th>
+                      <th>{data.itemLabels[0]}</th>
+                      <th>{data.itemLabels[1]}</th>
+                      <th>{data.itemLabels[2]}</th>
+                      <th>{data.itemLabels[3]}</th>
+                      <th>{data.itemLabels[4]}</th>
+                      <th>{data.itemLabels[5]}</th>
+                      <th>評語</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.records.map((record) => (
+                      <tr
+                        className={record.id === selectedId ? "is-selected" : ""}
+                        key={record.id}
+                      >
+                        <td>
+                          <button
+                            className="row-action-button"
+                            onClick={() => selectRecord(record)}
+                            type="button"
+                          >
+                            {record.id === selectedId ? "已選" : "選取"}
+                          </button>
+                        </td>
+                        <td>
+                          <input
+                            onChange={(event) =>
+                              updateTableField(
+                                record.id,
+                                "studentName",
+                                event.target.value,
+                              )
+                            }
+                            value={record.studentName}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            onChange={(event) =>
+                              updateTableField(
+                                record.id,
+                                "testDate",
+                                event.target.value,
+                              )
+                            }
+                            type="date"
+                            value={record.testDate}
+                          />
+                        </td>
+                        {scoreFields.map((field) => (
+                          <td key={field}>
+                            <input
+                              min="0"
+                              onChange={(event) =>
+                                updateTableField(
+                                  record.id,
+                                  field,
+                                  event.target.value,
+                                )
+                              }
+                              step="1"
+                              type="number"
+                              value={record[field]}
+                            />
+                          </td>
+                        ))}
+                        <td>
+                          <input
+                            onChange={(event) =>
+                              updateTableField(
+                                record.id,
+                                "comment",
+                                event.target.value,
+                              )
+                            }
+                            value={record.comment}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            className="row-delete-button"
+                            onClick={() => deleteTableRow(record.id)}
+                            type="button"
+                          >
+                            刪除
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section className="panel side-panel">
+              <h2>使用方式</h2>
+              <ul className="plain-list">
+                <li>每一格都可以直接修改，系統會立即存到本機。</li>
+                <li>用「新增列」快速加入新的學生測驗資料。</li>
+                <li>若要看單筆細節或雷達圖，可先按「選取」。</li>
+              </ul>
+            </section>
+          </>
+        ) : null}
+
         {activeTab === "editor" ? (
           <>
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>資料編輯</h2>
-                  <p>第一版所有正式修改都應該在這裡進行。</p>
+                  <h2>單筆編輯</h2>
+                  <p>適合針對單一學生做完整填寫與調整。</p>
                 </div>
               </div>
               <div className="form-grid">
                 <label>
                   學生姓名
                   <input
-                    onChange={(event) => updateDraftField("studentName", event.target.value)}
+                    onChange={(event) =>
+                      updateDraftField("studentName", event.target.value)
+                    }
                     value={draftRecord.studentName}
                   />
                 </label>
                 <label>
                   測驗日期
                   <input
-                    onChange={(event) => updateDraftField("testDate", event.target.value)}
+                    onChange={(event) =>
+                      updateDraftField("testDate", event.target.value)
+                    }
                     type="date"
                     value={draftRecord.testDate}
                   />
                 </label>
-                {(
-                  [
-                    "item1",
-                    "item2",
-                    "item3",
-                    "item4",
-                    "item5",
-                    "item6",
-                  ] as FitnessField[]
-                ).map((field, index) => (
+                {scoreFields.map((field, index) => (
                   <label key={field}>
                     {data.itemLabels[index]}
                     <input
@@ -344,7 +567,9 @@ export default function App() {
                 <label className="full-span">
                   評語
                   <textarea
-                    onChange={(event) => updateDraftField("comment", event.target.value)}
+                    onChange={(event) =>
+                      updateDraftField("comment", event.target.value)
+                    }
                     rows={4}
                     value={draftRecord.comment}
                   />
@@ -364,7 +589,7 @@ export default function App() {
               <ul className="plain-list">
                 <li>網頁是唯一正式編輯來源。</li>
                 <li>匯出的 Excel 只做檢視、備份、列印與攜帶。</li>
-                <li>若要修改資料，請回到本頁操作。</li>
+                <li>若要快速修改整班資料，請使用資料表編輯頁。</li>
               </ul>
             </section>
           </>
@@ -391,29 +616,7 @@ export default function App() {
                   </div>
                   <div>
                     <dt>最高項目</dt>
-                    <dd>
-                      {
-                        data.itemLabels[
-                          [
-                            selectedRecord.item1,
-                            selectedRecord.item2,
-                            selectedRecord.item3,
-                            selectedRecord.item4,
-                            selectedRecord.item5,
-                            selectedRecord.item6,
-                          ].indexOf(
-                            Math.max(
-                              selectedRecord.item1,
-                              selectedRecord.item2,
-                              selectedRecord.item3,
-                              selectedRecord.item4,
-                              selectedRecord.item5,
-                              selectedRecord.item6,
-                            ),
-                          )
-                        ]
-                      }
-                    </dd>
+                    <dd>{getTopLabel(selectedRecord)}</dd>
                   </div>
                   <div>
                     <dt>評語</dt>
@@ -421,7 +624,7 @@ export default function App() {
                   </div>
                 </dl>
               ) : (
-                <p>請先從資料列表選一筆資料。</p>
+                <p>請先從資料列表或資料表編輯頁選一筆資料。</p>
               )}
             </section>
           </>
@@ -482,9 +685,9 @@ export default function App() {
             <section className="panel side-panel">
               <h2>下一步建議</h2>
               <ul className="plain-list">
-                <li>補上批次編輯頁設計。</li>
-                <li>把 6 項欄位名稱做成可設定。</li>
-                <li>加入顯示歷史測驗紀錄的資料模型。</li>
+                <li>補上批次欄位套用功能。</li>
+                <li>把六項測驗名稱做成可設定。</li>
+                <li>加入歷次測驗紀錄與前後測比較。</li>
               </ul>
             </section>
           </>
