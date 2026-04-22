@@ -14,6 +14,13 @@ type TabKey =
   | "transfer"
   | "docs";
 
+type EditableField = keyof FitnessRecord;
+
+type ActiveCell = {
+  recordId: string;
+  field: EditableField;
+} | null;
+
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "records", label: "資料列表" },
   { key: "table", label: "資料表編輯" },
@@ -72,6 +79,7 @@ export default function App() {
   );
   const [searchText, setSearchText] = useState("");
   const [message, setMessage] = useState("已載入本機資料。");
+  const [activeCell, setActiveCell] = useState<ActiveCell>(null);
 
   useEffect(() => {
     saveAppData(data);
@@ -184,7 +192,7 @@ export default function App() {
 
   function updateTableField(
     recordId: string,
-    field: keyof FitnessRecord,
+    field: EditableField,
     value: string,
   ): void {
     setData((current) => ({
@@ -207,6 +215,14 @@ export default function App() {
         };
       }),
     }));
+  }
+
+  function beginCellEdit(recordId: string, field: EditableField): void {
+    setActiveCell({ recordId, field });
+  }
+
+  function stopCellEdit(): void {
+    setActiveCell(null);
   }
 
   async function handleImportChange(
@@ -260,6 +276,53 @@ export default function App() {
     const maxValue = Math.max(...values);
     const maxIndex = values.indexOf(maxValue);
     return data.itemLabels[maxIndex] ?? "未設定";
+  }
+
+  function renderTableCell(
+    record: FitnessRecord,
+    field: EditableField,
+    value: string | number,
+    options?: {
+      inputType?: "text" | "number" | "date";
+      min?: number;
+      step?: number;
+      className?: string;
+    },
+  ) {
+    const isEditing =
+      activeCell?.recordId === record.id && activeCell.field === field;
+
+    if (isEditing) {
+      return (
+        <input
+          autoFocus
+          className={options?.className}
+          min={options?.min}
+          onBlur={stopCellEdit}
+          onChange={(event) =>
+            updateTableField(record.id, field, event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === "Escape") {
+              stopCellEdit();
+            }
+          }}
+          step={options?.step}
+          type={options?.inputType ?? "text"}
+          value={String(value)}
+        />
+      );
+    }
+
+    return (
+      <button
+        className="cell-display"
+        onClick={() => beginCellEdit(record.id, field)}
+        type="button"
+      >
+        {String(value || "") || "—"}
+      </button>
+    );
   }
 
   return (
@@ -399,7 +462,7 @@ export default function App() {
               <div className="panel-header">
                 <div>
                   <h2>資料表編輯</h2>
-                  <p>可直接逐格編輯所有學生資料，適合一次整理整班成績。</p>
+                  <p>這一頁改成多欄列表模式，平常先看資料，點一下儲存格再就地編輯。</p>
                 </div>
                 <div className="button-row">
                   <button
@@ -443,60 +506,23 @@ export default function App() {
                             {record.id === selectedId ? "已選" : "選取"}
                           </button>
                         </td>
+                        <td>{renderTableCell(record, "studentName", record.studentName)}</td>
                         <td>
-                          <input
-                            onChange={(event) =>
-                              updateTableField(
-                                record.id,
-                                "studentName",
-                                event.target.value,
-                              )
-                            }
-                            value={record.studentName}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            onChange={(event) =>
-                              updateTableField(
-                                record.id,
-                                "testDate",
-                                event.target.value,
-                              )
-                            }
-                            type="date"
-                            value={record.testDate}
-                          />
+                          {renderTableCell(record, "testDate", record.testDate, {
+                            inputType: "date",
+                          })}
                         </td>
                         {scoreFields.map((field) => (
                           <td key={field}>
-                            <input
-                              min="0"
-                              onChange={(event) =>
-                                updateTableField(
-                                  record.id,
-                                  field,
-                                  event.target.value,
-                                )
-                              }
-                              step="1"
-                              type="number"
-                              value={record[field]}
-                            />
+                            {renderTableCell(record, field, record[field], {
+                              inputType: "number",
+                              min: 0,
+                              step: 1,
+                              className: "cell-input-number",
+                            })}
                           </td>
                         ))}
-                        <td>
-                          <input
-                            onChange={(event) =>
-                              updateTableField(
-                                record.id,
-                                "comment",
-                                event.target.value,
-                              )
-                            }
-                            value={record.comment}
-                          />
-                        </td>
+                        <td>{renderTableCell(record, "comment", record.comment)}</td>
                         <td>
                           <button
                             className="row-delete-button"
@@ -515,9 +541,9 @@ export default function App() {
             <section className="panel side-panel">
               <h2>使用方式</h2>
               <ul className="plain-list">
-                <li>每一格都可以直接修改，系統會立即存到本機。</li>
-                <li>用「新增列」快速加入新的學生測驗資料。</li>
-                <li>若要看單筆細節或雷達圖，可先按「選取」。</li>
+                <li>現在這頁預設是列表檢視，不會整排都變成表單。</li>
+                <li>點一下任一格才會進入編輯，按 Enter 或點別處就收起來。</li>
+                <li>這樣會比較接近你說的 multi-column list view 元件感。</li>
               </ul>
             </section>
           </>
