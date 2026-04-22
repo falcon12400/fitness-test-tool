@@ -6,18 +6,48 @@ const SYSTEM_SHEET_NAME = "_system";
 
 type SystemSheetMap = Record<string, string>;
 
-function buildVisibleRows(data: AppData): Array<Record<string, string | number>> {
-  return data.records.map((record) => ({
-    StudentName: record.studentName,
-    TestDate: record.testDate,
-    [data.itemLabels[0] ?? "Item 1"]: record.item1,
-    [data.itemLabels[1] ?? "Item 2"]: record.item2,
-    [data.itemLabels[2] ?? "Item 3"]: record.item3,
-    [data.itemLabels[3] ?? "Item 4"]: record.item4,
-    [data.itemLabels[4] ?? "Item 5"]: record.item5,
-    [data.itemLabels[5] ?? "Item 6"]: record.item6,
-    Comment: record.comment,
-  }));
+function buildVisibleSheet(data: AppData): XLSX.WorkSheet {
+  const headerRow = [
+    "姓名",
+    data.itemLabels[0] ?? "測驗項目 1",
+    data.itemLabels[1] ?? "測驗項目 2",
+    data.itemLabels[2] ?? "測驗項目 3",
+    data.itemLabels[3] ?? "測驗項目 4",
+    data.itemLabels[4] ?? "測驗項目 5",
+    data.itemLabels[5] ?? "測驗項目 6",
+    "評語",
+  ];
+  const recordRows = data.records.map((record) => [
+    record.studentName,
+    record.item1,
+    record.item2,
+    record.item3,
+    record.item4,
+    record.item5,
+    record.item6,
+    record.comment,
+  ]);
+  const rows = [
+    ["班級名稱", data.rosterName],
+    ["測驗日期", data.testDate],
+    [],
+    headerRow,
+    ...recordRows,
+  ];
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+
+  sheet["!cols"] = [
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 24 },
+  ];
+
+  return sheet;
 }
 
 function buildSystemRows(data: AppData): string[][] {
@@ -27,7 +57,10 @@ function buildSystemRows(data: AppData): string[][] {
     ["exportedAt", new Date().toISOString()],
     ["toolName", "fitness-test-tool"],
     ["toolVersion", "0.1.0"],
+    ["testDate", data.testDate],
     ["itemLabels", JSON.stringify(data.itemLabels)],
+    ["rosterName", data.rosterName],
+    ["rosterStudentsJson", JSON.stringify(data.rosterStudents)],
     ["recordsJson", JSON.stringify(data.records)],
   ];
 }
@@ -54,7 +87,7 @@ function parseRecordsJson(recordsJson: string): FitnessRecord[] {
 
 export function exportWorkbook(data: AppData): void {
   const workbook = XLSX.utils.book_new();
-  const visibleSheet = XLSX.utils.json_to_sheet(buildVisibleRows(data));
+  const visibleSheet = buildVisibleSheet(data);
   const systemSheet = XLSX.utils.aoa_to_sheet(buildSystemRows(data));
 
   XLSX.utils.book_append_sheet(workbook, visibleSheet, VISIBLE_SHEET_NAME);
@@ -88,9 +121,19 @@ export async function importWorkbook(file: File): Promise<AppData> {
     throw new Error("The embedded system data is incomplete or invalid.");
   }
 
+  const records = parseRecordsJson(values.recordsJson).map((record) => ({
+    ...record,
+    testDate: values.testDate || record.testDate,
+  }));
+
   return {
     schemaVersion: Number(values.schemaVersion),
+    testDate: values.testDate || records[0]?.testDate || new Date().toISOString().slice(0, 10),
     itemLabels: JSON.parse(values.itemLabels) as string[],
-    records: parseRecordsJson(values.recordsJson),
+    rosterName: values.rosterName || "目前名冊",
+    rosterStudents: values.rosterStudentsJson
+      ? (JSON.parse(values.rosterStudentsJson) as string[])
+      : [],
+    records,
   };
 }

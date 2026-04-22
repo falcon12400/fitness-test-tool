@@ -9,7 +9,9 @@ import type { AppData, FitnessField, FitnessRecord } from "./types";
 type TabKey =
   | "records"
   | "table"
+  | "metric"
   | "editor"
+  | "roster"
   | "analysis"
   | "transfer"
   | "docs";
@@ -22,8 +24,10 @@ type ActiveCell = {
 } | null;
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "records", label: "資料列表" },
+  { key: "records", label: "首頁" },
+  { key: "roster", label: "編輯名冊" },
   { key: "table", label: "資料表編輯" },
+  { key: "metric", label: "單項編輯" },
   { key: "editor", label: "單筆編輯" },
   { key: "analysis", label: "雷達圖分析" },
   { key: "transfer", label: "匯入匯出" },
@@ -39,11 +43,11 @@ const scoreFields: FitnessField[] = [
   "item6",
 ];
 
-function makeEmptyRecord(): FitnessRecord {
+function makeEmptyRecord(testDate: string): FitnessRecord {
   return {
     id: crypto.randomUUID(),
     studentName: "",
-    testDate: new Date().toISOString().slice(0, 10),
+    testDate,
     item1: 0,
     item2: 0,
     item3: 0,
@@ -70,16 +74,24 @@ function normalizeNumber(value: string): number {
   return Number.isFinite(nextValue) ? nextValue : 0;
 }
 
+function normalizeRosterText(text: string): string[] {
+  return text
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadAppData() ?? defaultAppData);
   const [activeTab, setActiveTab] = useState<TabKey>("records");
   const [selectedId, setSelectedId] = useState<string>(data.records[0]?.id ?? "");
   const [draftRecord, setDraftRecord] = useState<FitnessRecord>(
-    data.records[0] ?? makeEmptyRecord(),
+    data.records[0] ?? makeEmptyRecord(data.testDate),
   );
   const [searchText, setSearchText] = useState("");
   const [message, setMessage] = useState("已載入本機資料。");
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
+  const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
 
   useEffect(() => {
     saveAppData(data);
@@ -107,8 +119,11 @@ export default function App() {
     );
   }, [data.records, searchText]);
 
+  const activeMetricIndex = scoreFields.indexOf(activeMetric);
+  const activeMetricLabel = data.itemLabels[activeMetricIndex] ?? activeMetric;
+
   function startCreate(): void {
-    const nextRecord = makeEmptyRecord();
+    const nextRecord = makeEmptyRecord(data.testDate);
     setDraftRecord(nextRecord);
     setSelectedId("");
     setActiveTab("editor");
@@ -139,6 +154,7 @@ export default function App() {
     const normalized = {
       ...draftRecord,
       studentName: draftRecord.studentName.trim(),
+      testDate: data.testDate,
     };
 
     const nextRecords = upsertRecord(data.records, normalized);
@@ -160,12 +176,12 @@ export default function App() {
     );
     setData((current) => ({ ...current, records: nextRecords }));
     setSelectedId(nextRecords[0]?.id ?? "");
-    setDraftRecord(nextRecords[0] ?? makeEmptyRecord());
+    setDraftRecord(nextRecords[0] ?? makeEmptyRecord(data.testDate));
     setMessage("資料已刪除。");
   }
 
   function addTableRow(): void {
-    const nextRecord = makeEmptyRecord();
+    const nextRecord = makeEmptyRecord(data.testDate);
     setData((current) => ({
       ...current,
       records: [nextRecord, ...current.records],
@@ -184,7 +200,7 @@ export default function App() {
 
     if (selectedId === recordId) {
       setSelectedId(nextRecords[0]?.id ?? "");
-      setDraftRecord(nextRecords[0] ?? makeEmptyRecord());
+      setDraftRecord(nextRecords[0] ?? makeEmptyRecord(data.testDate));
     }
 
     setMessage("已從資料表移除一筆資料。");
@@ -217,6 +233,80 @@ export default function App() {
     }));
   }
 
+  function updateItemLabel(field: FitnessField, nextLabel: string): void {
+    const index = scoreFields.indexOf(field);
+    if (index === -1) {
+      return;
+    }
+
+    setData((current) => ({
+      ...current,
+      itemLabels: current.itemLabels.map((label, labelIndex) =>
+        labelIndex === index ? nextLabel : label,
+      ),
+    }));
+  }
+
+  function updateSharedTestDate(nextDate: string): void {
+    setData((current) => ({
+      ...current,
+      testDate: nextDate,
+      records: current.records.map((record) => ({
+        ...record,
+        testDate: nextDate,
+      })),
+    }));
+  }
+
+  function updateRosterName(nextName: string): void {
+    setData((current) => ({
+      ...current,
+      rosterName: nextName,
+    }));
+  }
+
+  function updateRosterStudentsText(text: string): void {
+    setData((current) => ({
+      ...current,
+      rosterStudents: normalizeRosterText(text),
+    }));
+  }
+
+  function importRosterToRecords(): void {
+    if (!data.rosterStudents.length) {
+      setMessage("目前名冊是空的。");
+      return;
+    }
+
+    const existingMap = new Map(
+      data.records.map((record) => [record.studentName, record] as const),
+    );
+
+    const nextRecords = data.rosterStudents.map((studentName) => {
+      const existing = existingMap.get(studentName);
+      if (existing) {
+        return {
+          ...existing,
+          studentName,
+          testDate: data.testDate,
+        };
+      }
+
+      return {
+        ...makeEmptyRecord(data.testDate),
+        studentName,
+      };
+    });
+
+    setData((current) => ({
+      ...current,
+      records: nextRecords,
+    }));
+    setSelectedId(nextRecords[0]?.id ?? "");
+    setDraftRecord(nextRecords[0] ?? makeEmptyRecord(data.testDate));
+    setMessage("已將名冊匯入目前資料。");
+  }
+
   function beginCellEdit(recordId: string, field: EditableField): void {
     setActiveCell({ recordId, field });
   }
@@ -237,7 +327,7 @@ export default function App() {
       const imported = await importWorkbook(file);
       setData(imported);
       setSelectedId(imported.records[0]?.id ?? "");
-      setDraftRecord(imported.records[0] ?? makeEmptyRecord());
+      setDraftRecord(imported.records[0] ?? makeEmptyRecord(imported.testDate));
       setMessage("Excel 匯入成功，已採用內嵌系統資料。");
     } catch (error) {
       const nextMessage =
@@ -256,7 +346,8 @@ export default function App() {
   function resetSampleData(): void {
     setData(defaultAppData);
     setSelectedId(defaultAppData.records[0]?.id ?? "");
-    setDraftRecord(defaultAppData.records[0] ?? makeEmptyRecord());
+    setDraftRecord(defaultAppData.records[0] ?? makeEmptyRecord(defaultAppData.testDate));
+    setActiveMetric("item1");
     setMessage("已還原為範例資料。");
   }
 
@@ -283,7 +374,7 @@ export default function App() {
     field: EditableField,
     value: string | number,
     options?: {
-      inputType?: "text" | "number" | "date";
+      inputType?: "text" | "number";
       min?: number;
       step?: number;
       className?: string;
@@ -334,6 +425,23 @@ export default function App() {
           <p className="hero-copy">
             第一版以網頁為唯一正式編輯來源，Excel 僅用於檢視、備份、列印與攜帶。
           </p>
+          <div className="hero-meta">
+            <label className="shared-date-field">
+              班級名稱
+              <input
+                onChange={(event) => updateRosterName(event.target.value)}
+                value={data.rosterName}
+              />
+            </label>
+            <label className="shared-date-field">
+              本次測驗日期
+              <input
+                onChange={(event) => updateSharedTestDate(event.target.value)}
+                type="date"
+                value={data.testDate}
+              />
+            </label>
+          </div>
         </div>
         <div className="hero-actions">
           <button className="primary-button" onClick={startCreate} type="button">
@@ -358,8 +466,6 @@ export default function App() {
         ))}
       </nav>
 
-      <p className="status-banner">{message}</p>
-
       <main className="panel-grid">
         {activeTab === "records" ? (
           <>
@@ -381,7 +487,6 @@ export default function App() {
                   <thead>
                     <tr>
                       <th>學生姓名</th>
-                      <th>測驗日期</th>
                       <th>{data.itemLabels[0]}</th>
                       <th>{data.itemLabels[1]}</th>
                       <th>{data.itemLabels[2]}</th>
@@ -398,7 +503,6 @@ export default function App() {
                         onClick={() => selectRecord(record)}
                       >
                         <td>{record.studentName}</td>
-                        <td>{record.testDate}</td>
                         <td>{record.item1}</td>
                         <td>{record.item2}</td>
                         <td>{record.item3}</td>
@@ -419,10 +523,6 @@ export default function App() {
                     <div>
                       <dt>學生姓名</dt>
                       <dd>{selectedRecord.studentName}</dd>
-                    </div>
-                    <div>
-                      <dt>測驗日期</dt>
-                      <dd>{selectedRecord.testDate}</dd>
                     </div>
                     <div>
                       <dt>評語</dt>
@@ -462,7 +562,7 @@ export default function App() {
               <div className="panel-header">
                 <div>
                   <h2>資料表編輯</h2>
-                  <p>這一頁改成多欄列表模式，平常先看資料，點一下儲存格再就地編輯。</p>
+                  <p>這一頁預設是列表檢視，點一下儲存格再就地編輯。</p>
                 </div>
                 <div className="button-row">
                   <button
@@ -478,9 +578,7 @@ export default function App() {
                 <table className="table-editor">
                   <thead>
                     <tr>
-                      <th>選取</th>
                       <th>學生姓名</th>
-                      <th>測驗日期</th>
                       <th>{data.itemLabels[0]}</th>
                       <th>{data.itemLabels[1]}</th>
                       <th>{data.itemLabels[2]}</th>
@@ -496,22 +594,9 @@ export default function App() {
                       <tr
                         className={record.id === selectedId ? "is-selected" : ""}
                         key={record.id}
+                        onClick={() => selectRecord(record)}
                       >
-                        <td>
-                          <button
-                            className="row-action-button"
-                            onClick={() => selectRecord(record)}
-                            type="button"
-                          >
-                            {record.id === selectedId ? "已選" : "選取"}
-                          </button>
-                        </td>
                         <td>{renderTableCell(record, "studentName", record.studentName)}</td>
-                        <td>
-                          {renderTableCell(record, "testDate", record.testDate, {
-                            inputType: "date",
-                          })}
-                        </td>
                         {scoreFields.map((field) => (
                           <td key={field}>
                             {renderTableCell(record, field, record[field], {
@@ -541,9 +626,86 @@ export default function App() {
             <section className="panel side-panel">
               <h2>使用方式</h2>
               <ul className="plain-list">
-                <li>現在這頁預設是列表檢視，不會整排都變成表單。</li>
+                <li>這一頁預設是列表檢視，不會整排都變成表單。</li>
                 <li>點一下任一格才會進入編輯，按 Enter 或點別處就收起來。</li>
-                <li>這樣會比較接近你說的 multi-column list view 元件感。</li>
+                <li>如果你想只專注調整某一個項目，請改用單項編輯頁。</li>
+              </ul>
+            </section>
+          </>
+        ) : null}
+
+        {activeTab === "metric" ? (
+          <>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>單項編輯</h2>
+                  <p>一次只處理一個測驗欄位，適合全班統一補分、修分或更改欄位名稱。</p>
+                </div>
+              </div>
+
+              <div className="metric-toolbar">
+                {scoreFields.map((field, index) => (
+                  <button
+                    className={field === activeMetric ? "metric-pill is-active" : "metric-pill"}
+                    key={field}
+                    onClick={() => setActiveMetric(field)}
+                    type="button"
+                  >
+                    {data.itemLabels[index]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="metric-header-card">
+                <label className="metric-label-editor">
+                  目前欄位名稱
+                  <input
+                    onChange={(event) => updateItemLabel(activeMetric, event.target.value)}
+                    value={activeMetricLabel}
+                  />
+                </label>
+                <p className="metric-header-help">
+                  這裡改的是欄位標題，例如把「柔軟度」改成別的名稱。
+                </p>
+              </div>
+
+              <div className="table-wrap">
+                <table className="table-editor metric-editor">
+                  <thead>
+                    <tr>
+                      <th>學生姓名</th>
+                      <th>{activeMetricLabel}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.records.map((record) => (
+                      <tr
+                        className={record.id === selectedId ? "is-selected" : ""}
+                        key={record.id}
+                        onClick={() => selectRecord(record)}
+                      >
+                        <td>{record.studentName}</td>
+                        <td>
+                          {renderTableCell(record, activeMetric, record[activeMetric], {
+                            inputType: "number",
+                            min: 0,
+                            step: 1,
+                            className: "cell-input-number",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section className="panel side-panel">
+              <h2>適用情境</h2>
+              <ul className="plain-list">
+                <li>只想調整某一項分數，不想被其他欄位干擾。</li>
+                <li>欄位名稱需要重命名，例如改成不同學期或不同測驗名稱。</li>
+                <li>這一頁比整表編輯更聚焦，也更接近單欄批次處理。</li>
               </ul>
             </section>
           </>
@@ -566,16 +728,6 @@ export default function App() {
                       updateDraftField("studentName", event.target.value)
                     }
                     value={draftRecord.studentName}
-                  />
-                </label>
-                <label>
-                  測驗日期
-                  <input
-                    onChange={(event) =>
-                      updateDraftField("testDate", event.target.value)
-                    }
-                    type="date"
-                    value={draftRecord.testDate}
                   />
                 </label>
                 {scoreFields.map((field, index) => (
@@ -615,7 +767,58 @@ export default function App() {
               <ul className="plain-list">
                 <li>網頁是唯一正式編輯來源。</li>
                 <li>匯出的 Excel 只做檢視、備份、列印與攜帶。</li>
-                <li>若要快速修改整班資料，請使用資料表編輯頁。</li>
+                <li>若要快速修改整班資料，請使用資料表編輯或單項編輯頁。</li>
+              </ul>
+            </section>
+          </>
+        ) : null}
+
+        {activeTab === "roster" ? (
+          <>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>編輯名冊</h2>
+                  <p>這裡只管理一份目前名冊。若要切換班級，直接匯入那個班先前的資料即可。</p>
+                </div>
+              </div>
+
+              <div className="roster-editor">
+                <label className="metric-label-editor">
+                  名冊名稱
+                  <input
+                    onChange={(event) => updateRosterName(event.target.value)}
+                    value={data.rosterName}
+                  />
+                </label>
+
+                <label className="roster-text-editor">
+                  名冊內容（每行一位學生）
+                  <textarea
+                    onChange={(event) => updateRosterStudentsText(event.target.value)}
+                    rows={14}
+                    value={data.rosterStudents.join("\n")}
+                  />
+                </label>
+
+                <div className="button-row">
+                  <button
+                    className="primary-button"
+                    onClick={importRosterToRecords}
+                    type="button"
+                  >
+                    儲存
+                  </button>
+                </div>
+              </div>
+            </section>
+            <section className="panel side-panel">
+              <h2>使用方式</h2>
+              <ul className="plain-list">
+                <li>這裡只保留一份目前名冊，不再管理多個班級清單。</li>
+                <li>名冊內容用每行一位學生的方式輸入，最省事。</li>
+                <li>按「儲存」後，會用名冊建立或對齊目前這份測驗資料。</li>
+                <li>如果要切換班級，建議直接匯入該班先前存好的整份資料。</li>
               </ul>
             </section>
           </>
@@ -629,6 +832,27 @@ export default function App() {
                   <h2>雷達圖分析</h2>
                   <p>快速查看單一學生六項測驗分布。</p>
                 </div>
+                <label className="shared-date-field">
+                  選擇學生
+                  <select
+                    className="search-input"
+                    onChange={(event) => {
+                      const nextRecord = data.records.find(
+                        (record) => record.id === event.target.value,
+                      );
+                      if (nextRecord) {
+                        selectRecord(nextRecord);
+                      }
+                    }}
+                    value={selectedId}
+                  >
+                    {data.records.map((record) => (
+                      <option key={record.id} value={record.id}>
+                        {record.studentName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <RadarChart labels={data.itemLabels} record={selectedRecord} />
             </section>
@@ -711,8 +935,8 @@ export default function App() {
             <section className="panel side-panel">
               <h2>下一步建議</h2>
               <ul className="plain-list">
-                <li>補上批次欄位套用功能。</li>
-                <li>把六項測驗名稱做成可設定。</li>
+                <li>補上名冊貼上 CSV 或 Excel 的功能。</li>
+                <li>補上單項編輯的批次加減分功能。</li>
                 <li>加入歷次測驗紀錄與前後測比較。</li>
               </ul>
             </section>

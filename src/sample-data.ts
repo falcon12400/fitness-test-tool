@@ -2,7 +2,10 @@ import type { AppData } from "./types";
 
 export const defaultAppData: AppData = {
   schemaVersion: 1,
+  testDate: "2026-04-22",
   itemLabels: ["柔軟度", "平衡", "核心", "爆發力", "敏捷", "協調"],
+  rosterName: "目前名冊",
+  rosterStudents: ["王小明", "林小華"],
   records: [
     {
       id: "rec_001",

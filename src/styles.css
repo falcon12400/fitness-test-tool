@@ -25,6 +25,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -73,6 +74,29 @@ button {
   margin: 12px 0 0;
   max-width: 700px;
   color: #475569;
+}
+
+.hero-meta {
+  margin-top: 18px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.shared-date-field {
+  display: grid;
+  gap: 8px;
+  max-width: 220px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.shared-date-field input {
+  width: 100%;
+  border: 1px solid #d6dbe5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
 }
 
 .hero-actions,
@@ -190,6 +214,7 @@ button {
 }
 
 .search-input,
+.shared-date-field select,
 .form-grid input,
 .form-grid textarea {
   width: 100%;
@@ -249,6 +274,10 @@ tbody tr.is-selected {
   min-width: 110px;
 }
 
+.table-editor tbody tr {
+  cursor: pointer;
+}
+
 .cell-display,
 .table-editor input {
   width: 100%;
@@ -273,6 +302,80 @@ tbody tr.is-selected {
 
 .cell-input-number {
   text-align: right;
+}
+
+.metric-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.metric-pill {
+  border: 1px solid #d6dbe5;
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: #ffffff;
+  color: #334155;
+}
+
+.metric-pill.is-active {
+  border-color: #115e59;
+  background: #0f766e;
+  color: #f8fafc;
+}
+
+.metric-header-card {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.metric-label-editor {
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.metric-label-editor input {
+  width: 100%;
+  border: 1px solid #d6dbe5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.metric-header-help {
+  margin: 10px 0 0;
+  color: #64748b;
+}
+
+.metric-editor {
+  min-width: 520px;
+}
+
+.roster-editor {
+  display: grid;
+  gap: 16px;
+}
+
+.roster-text-editor {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.roster-text-editor textarea {
+  width: 100%;
+  border: 1px solid #d6dbe5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  resize: vertical;
 }
 
 .row-action-button,
