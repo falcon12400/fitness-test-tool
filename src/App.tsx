@@ -12,7 +12,6 @@ type TabKey =
   | "editor"
   | "roster"
   | "analysis"
-  | "playground"
   | "pdf";
 
 type EditableField = keyof FitnessRecord;
@@ -27,7 +26,6 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "metric", label: "測驗項目" },
   { key: "analysis", label: "檢視能力分析" },
   { key: "table", label: "檢視總表" },
-  { key: "playground", label: "測試元件" },
   { key: "pdf", label: "下載PDF" },
 ];
 
@@ -39,8 +37,6 @@ const scoreFields: FitnessField[] = [
   "item5",
   "item6",
 ];
-
-const playgroundSheetHeaders = ["學生姓名", "柔軟度", "平衡", "核心"];
 
 function hasIncompleteScore(record: FitnessRecord): boolean {
   return scoreFields.some(
@@ -106,7 +102,6 @@ export default function App() {
   const [draftRecord, setDraftRecord] = useState<FitnessRecord>(
     data.records[0] ?? makeEmptyRecord(data.testDate),
   );
-  const [searchText, setSearchText] = useState("");
   const [message, setMessage] = useState("已載入本機資料。");
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
@@ -114,22 +109,10 @@ export default function App() {
   const [rosterDraft, setRosterDraft] = useState<RosterEntry[]>(() =>
     data.rosterEntries.length ? data.rosterEntries : [makeEmptyRosterEntry()],
   );
-  const [playgroundSelectedId, setPlaygroundSelectedId] = useState<string[]>(
-    () => data.records[0]?.id ? [data.records[0].id] : [],
-  );
-  const [sheetActiveCell, setSheetActiveCell] = useState<{
+  const [rosterActiveCell, setRosterActiveCell] = useState<{
     rowIndex: number;
     columnIndex: number;
   } | null>(null);
-  const [sheetDraft, setSheetDraft] = useState<string[][]>(() =>
-    (data.records.length ? data.records : defaultAppData.records).slice(0, 6).map((record) => [
-      record.studentName,
-      String(record.item1),
-      String(record.item2),
-      String(record.item3),
-    ]),
-  );
-
   useEffect(() => {
     saveAppData(data);
   }, [data]);
@@ -143,53 +126,20 @@ export default function App() {
     [data.records, selectedId],
   );
 
-  const playgroundRecords = useMemo(
-    () => data.records.slice(0, 8),
-    [data.records],
-  );
-
   useEffect(() => {
     if (selectedRecord) {
       setDraftRecord(selectedRecord);
     }
   }, [selectedRecord]);
 
-  const filteredRecords = useMemo(() => {
-    const normalized = searchText.trim().toLowerCase();
-    if (!normalized) {
-      return data.records;
-    }
-
-    return data.records.filter((record) =>
-      record.studentName.toLowerCase().includes(normalized),
-    );
-  }, [data.records, searchText]);
-
   const tableRecords = useMemo(() => {
-    const baseRecords = showIncompleteOnly
+    return showIncompleteOnly
       ? data.records.filter((record) => hasIncompleteScore(record))
       : data.records;
-
-    const normalized = searchText.trim().toLowerCase();
-    if (!normalized) {
-      return baseRecords;
-    }
-
-    return baseRecords.filter((record) =>
-      record.studentName.toLowerCase().includes(normalized),
-    );
-  }, [data.records, searchText, showIncompleteOnly]);
+  }, [data.records, showIncompleteOnly]);
 
   const activeMetricIndex = scoreFields.indexOf(activeMetric);
   const activeMetricLabel = data.itemLabels[activeMetricIndex] ?? activeMetric;
-
-  function startCreate(): void {
-    const nextRecord = makeEmptyRecord(data.testDate);
-    setDraftRecord(nextRecord);
-    setSelectedId("");
-    setActiveTab("editor");
-    setMessage("已切換到新增模式。");
-  }
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
@@ -252,21 +202,6 @@ export default function App() {
     setMessage("已新增一筆空白資料。");
   }
 
-  function deleteTableRow(recordId: string): void {
-    const nextRecords = data.records.filter((record) => record.id !== recordId);
-    setData((current) => ({
-      ...current,
-      records: nextRecords,
-    }));
-
-    if (selectedId === recordId) {
-      setSelectedId(nextRecords[0]?.id ?? "");
-      setDraftRecord(nextRecords[0] ?? makeEmptyRecord(data.testDate));
-    }
-
-    setMessage("已從資料表移除一筆資料。");
-  }
-
   function updateTableField(
     recordId: string,
     field: EditableField,
@@ -294,20 +229,6 @@ export default function App() {
     }));
   }
 
-  function updateItemLabel(field: FitnessField, nextLabel: string): void {
-    const index = scoreFields.indexOf(field);
-    if (index === -1) {
-      return;
-    }
-
-    setData((current) => ({
-      ...current,
-      itemLabels: current.itemLabels.map((label, labelIndex) =>
-        labelIndex === index ? nextLabel : label,
-      ),
-    }));
-  }
-
   function updateSharedTestDate(nextDate: string): void {
     setData((current) => ({
       ...current,
@@ -326,17 +247,27 @@ export default function App() {
     }));
   }
 
-  function updateRosterDraftField(
-    rosterId: string,
-    field: keyof Omit<RosterEntry, "id">,
+  function updateRosterDraftCell(
+    rowIndex: number,
+    columnIndex: number,
     value: string,
   ): void {
+    const rosterFields: Array<keyof Omit<RosterEntry, "id">> = [
+      "studentName",
+      "height",
+      "weight",
+    ];
+    const targetField = rosterFields[columnIndex];
+    if (!targetField) {
+      return;
+    }
+
     setRosterDraft((current) =>
-      current.map((entry) =>
-        entry.id === rosterId
+      current.map((entry, currentRowIndex) =>
+        currentRowIndex === rowIndex
           ? {
               ...entry,
-              [field]: value,
+              [targetField]: value,
             }
           : entry,
       ),
@@ -347,68 +278,58 @@ export default function App() {
     setRosterDraft((current) => [...current, makeEmptyRosterEntry()]);
   }
 
-  function togglePlaygroundRecord(recordId: string): void {
-    setPlaygroundSelectedId((current) =>
-      current.includes(recordId)
-        ? current.filter((id) => id !== recordId)
-        : [...current, recordId],
+  function applyGridPaste(
+    current: string[][],
+    startRowIndex: number,
+    startColumnIndex: number,
+    clipboardText: string,
+  ): string[][] {
+    const pastedGrid = parseClipboardGrid(clipboardText);
+    if (!pastedGrid.length) {
+      return current;
+    }
+
+    return current.map((row, rowIndex) =>
+      row.map((cell, columnIndex) => {
+        const pastedRow = pastedGrid[rowIndex - startRowIndex];
+        if (!pastedRow) {
+          return cell;
+        }
+
+        const pastedCell = pastedRow[columnIndex - startColumnIndex];
+        return pastedCell === undefined ? cell : pastedCell;
+      }),
     );
   }
 
-  function updateSheetCell(
-    rowIndex: number,
-    columnIndex: number,
-    nextValue: string,
-  ): void {
-    setSheetDraft((current) =>
-      current.map((row, currentRowIndex) =>
-        currentRowIndex === rowIndex
-          ? row.map((cell, currentColumnIndex) =>
-              currentColumnIndex === columnIndex ? nextValue : cell,
-            )
-          : row,
-      ),
-    );
-  }
-
-  function applySheetPaste(
+  function applyRosterPaste(
     startRowIndex: number,
     startColumnIndex: number,
     clipboardText: string,
   ): void {
-    const pastedGrid = parseClipboardGrid(clipboardText);
-    if (!pastedGrid.length) {
-      return;
-    }
+    const rosterRows = rosterDraft.map((entry) => [
+      entry.studentName,
+      entry.height,
+      entry.weight,
+    ]);
+    const nextRows = applyGridPaste(
+      rosterRows,
+      startRowIndex,
+      startColumnIndex,
+      clipboardText,
+    );
 
-    setSheetDraft((current) =>
-      current.map((row, rowIndex) =>
-        row.map((cell, columnIndex) => {
-          const pastedRow = pastedGrid[rowIndex - startRowIndex];
-          if (!pastedRow) {
-            return cell;
-          }
-
-          const pastedCell = pastedRow[columnIndex - startColumnIndex];
-          return pastedCell === undefined ? cell : pastedCell;
-        }),
-      ),
+    setRosterDraft((current) =>
+      current.map((entry, rowIndex) => ({
+        ...entry,
+        studentName: nextRows[rowIndex]?.[0] ?? entry.studentName,
+        height: nextRows[rowIndex]?.[1] ?? entry.height,
+        weight: nextRows[rowIndex]?.[2] ?? entry.weight,
+      })),
     );
   }
 
-  function moveSheetActiveCell(
-    rowIndex: number,
-    columnIndex: number,
-    rowOffset: number,
-  ): void {
-    const nextRowIndex = Math.max(
-      0,
-      Math.min(sheetDraft.length - 1, rowIndex + rowOffset),
-    );
-    setSheetActiveCell({ rowIndex: nextRowIndex, columnIndex });
-  }
-
-  function handleSheetPaste(
+  function handleRosterPaste(
     event: ClipboardEvent<HTMLInputElement>,
     rowIndex: number,
     columnIndex: number,
@@ -419,17 +340,21 @@ export default function App() {
     }
 
     event.preventDefault();
-    applySheetPaste(rowIndex, columnIndex, clipboardText);
+    applyRosterPaste(rowIndex, columnIndex, clipboardText);
   }
 
-  function handleSheetKeyDown(
+  function handleRosterKeyDown(
     event: KeyboardEvent<HTMLInputElement>,
     rowIndex: number,
     columnIndex: number,
   ): void {
     if (event.key === "Enter") {
       event.preventDefault();
-      moveSheetActiveCell(rowIndex, columnIndex, event.shiftKey ? -1 : 1);
+      const nextRowIndex = Math.max(
+        0,
+        Math.min(rosterDraft.length - 1, rowIndex + (event.shiftKey ? -1 : 1)),
+      );
+      setRosterActiveCell({ rowIndex: nextRowIndex, columnIndex });
     }
   }
 
@@ -523,14 +448,6 @@ export default function App() {
     setMessage("Excel 已匯出。");
   }
 
-  function resetSampleData(): void {
-    setData(defaultAppData);
-    setSelectedId(defaultAppData.records[0]?.id ?? "");
-    setDraftRecord(defaultAppData.records[0] ?? makeEmptyRecord(defaultAppData.testDate));
-    setActiveMetric("item1");
-    setMessage("已還原為範例資料。");
-  }
-
   function updateScore(field: FitnessField, value: string): void {
     updateDraftField(field, normalizeNumber(value));
   }
@@ -569,6 +486,7 @@ export default function App() {
           autoFocus
           className={options?.className}
           min={options?.min}
+          onFocus={(event) => event.currentTarget.select()}
           onBlur={stopCellEdit}
           onChange={(event) =>
             updateTableField(record.id, field, event.target.value)
@@ -600,7 +518,7 @@ export default function App() {
     <div className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Fitness Test Tool</p>
+          <p className="eyebrow">新北市運動遊戲體育協會</p>
           <h1>體適能測驗管理工具</h1>
           <p className="hero-copy">
             第一版以網頁為唯一正式編輯來源，Excel 僅用於檢視、備份、列印與攜帶。
@@ -622,14 +540,6 @@ export default function App() {
               />
             </label>
           </div>
-        </div>
-        <div className="hero-actions">
-          <button className="primary-button" onClick={startCreate} type="button">
-            新增資料
-          </button>
-          <button className="secondary-button" onClick={resetSampleData} type="button">
-            還原範例
-          </button>
         </div>
       </header>
 
@@ -672,12 +582,6 @@ export default function App() {
                     新增列
                   </button>
                 </div>
-                <input
-                  className="search-input table-search"
-                  onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="搜尋學生姓名"
-                  value={searchText}
-                />
               </div>
               <div className="table-wrap">
                 <table className="table-editor">
@@ -738,7 +642,7 @@ export default function App() {
               <div className="panel-header">
                 <div>
                   <h2>測驗項目</h2>
-                  <p>一次只處理一個測驗欄位，適合全班統一補分、修分或更改欄位名稱。</p>
+                  <p>一次只處理一個測驗欄位，適合全班統一補分或修分。</p>
                 </div>
               </div>
 
@@ -753,19 +657,6 @@ export default function App() {
                     {data.itemLabels[index]}
                   </button>
                 ))}
-              </div>
-
-              <div className="metric-header-card">
-                <label className="metric-label-editor">
-                  目前欄位名稱
-                  <input
-                    onChange={(event) => updateItemLabel(activeMetric, event.target.value)}
-                    value={activeMetricLabel}
-                  />
-                </label>
-                <p className="metric-header-help">
-                  這裡改的是欄位標題，例如把「柔軟度」改成別的名稱。
-                </p>
               </div>
 
               <div className="table-wrap">
@@ -802,8 +693,8 @@ export default function App() {
               <h2>適用情境</h2>
               <ul className="plain-list">
                 <li>只想調整某一項分數，不想被其他欄位干擾。</li>
-                <li>欄位名稱需要重命名，例如改成不同學期或不同測驗名稱。</li>
                 <li>這一頁比整表編輯更聚焦，也更接近單欄批次處理。</li>
+                <li>適合老師在同一個測驗項目下，快速補完整班資料。</li>
               </ul>
             </section>
           </>
@@ -919,31 +810,97 @@ export default function App() {
                         <tr key={entry.id}>
                           <td>{index + 1}</td>
                           <td>
-                            <input
-                              className="sheet-input"
-                              onChange={(event) =>
-                                updateRosterDraftField(entry.id, "studentName", event.target.value)
-                              }
-                              value={entry.studentName}
-                            />
+                            {rosterActiveCell?.rowIndex === index &&
+                            rosterActiveCell?.columnIndex === 0 ? (
+                              <input
+                                autoFocus
+                                className="sheet-input"
+                                onFocus={(event) => event.currentTarget.select()}
+                                onBlur={() => setRosterActiveCell(null)}
+                                onChange={(event) =>
+                                  updateRosterDraftCell(index, 0, event.target.value)
+                                }
+                                onKeyDown={(event) =>
+                                  handleRosterKeyDown(event, index, 0)
+                                }
+                                onPaste={(event) =>
+                                  handleRosterPaste(event, index, 0)
+                                }
+                                value={entry.studentName}
+                              />
+                            ) : (
+                              <button
+                                className="sheet-cell"
+                                onClick={() =>
+                                  setRosterActiveCell({ rowIndex: index, columnIndex: 0 })
+                                }
+                                type="button"
+                              >
+                                {entry.studentName || "—"}
+                              </button>
+                            )}
                           </td>
                           <td>
-                            <input
-                              className="sheet-input"
-                              onChange={(event) =>
-                                updateRosterDraftField(entry.id, "height", event.target.value)
-                              }
-                              value={entry.height}
-                            />
+                            {rosterActiveCell?.rowIndex === index &&
+                            rosterActiveCell?.columnIndex === 1 ? (
+                              <input
+                                autoFocus
+                                className="sheet-input"
+                                onFocus={(event) => event.currentTarget.select()}
+                                onBlur={() => setRosterActiveCell(null)}
+                                onChange={(event) =>
+                                  updateRosterDraftCell(index, 1, event.target.value)
+                                }
+                                onKeyDown={(event) =>
+                                  handleRosterKeyDown(event, index, 1)
+                                }
+                                onPaste={(event) =>
+                                  handleRosterPaste(event, index, 1)
+                                }
+                                value={entry.height}
+                              />
+                            ) : (
+                              <button
+                                className="sheet-cell"
+                                onClick={() =>
+                                  setRosterActiveCell({ rowIndex: index, columnIndex: 1 })
+                                }
+                                type="button"
+                              >
+                                {entry.height || "—"}
+                              </button>
+                            )}
                           </td>
                           <td>
-                            <input
-                              className="sheet-input"
-                              onChange={(event) =>
-                                updateRosterDraftField(entry.id, "weight", event.target.value)
-                              }
-                              value={entry.weight}
-                            />
+                            {rosterActiveCell?.rowIndex === index &&
+                            rosterActiveCell?.columnIndex === 2 ? (
+                              <input
+                                autoFocus
+                                className="sheet-input"
+                                onFocus={(event) => event.currentTarget.select()}
+                                onBlur={() => setRosterActiveCell(null)}
+                                onChange={(event) =>
+                                  updateRosterDraftCell(index, 2, event.target.value)
+                                }
+                                onKeyDown={(event) =>
+                                  handleRosterKeyDown(event, index, 2)
+                                }
+                                onPaste={(event) =>
+                                  handleRosterPaste(event, index, 2)
+                                }
+                                value={entry.weight}
+                              />
+                            ) : (
+                              <button
+                                className="sheet-cell"
+                                onClick={() =>
+                                  setRosterActiveCell({ rowIndex: index, columnIndex: 2 })
+                                }
+                                type="button"
+                              >
+                                {entry.weight || "—"}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -974,6 +931,8 @@ export default function App() {
               <ul className="plain-list">
                 <li>這裡只保留一份目前名冊，不再管理多個班級清單。</li>
                 <li>名冊現在改成 Excel 風格表格，可直接逐格輸入姓名、身高與體重。</li>
+                <li>支援從 Google Sheets 或 Excel 直接貼上多列多欄資料。</li>
+                <li>按 Enter 會跳到下一列同欄，Shift + Enter 會跳到上一列。</li>
                 <li>按「儲存」後，會用名冊建立或對齊目前這份測驗資料。</li>
                 <li>如果要切換班級，建議直接匯入該班先前存好的整份資料。</li>
               </ul>
@@ -1041,138 +1000,6 @@ export default function App() {
               ) : (
                 <p>請先從檢視總表選一筆資料。</p>
               )}
-            </section>
-          </>
-        ) : null}
-
-        {activeTab === "playground" ? (
-          <>
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>測試元件</h2>
-                  <p>這一頁專門拿來比較不同 listbox 與類 Excel 互動，方便決定正式版要走哪種手感。</p>
-                </div>
-              </div>
-
-              <div className="playground-grid">
-                <article className="playground-card">
-                  <h3>傳統 Listbox</h3>
-                  <p>單列資訊最少，適合快速點選目前要編輯的學生。</p>
-                  <div className="playground-listbox" role="listbox" aria-label="學生清單">
-                    {playgroundRecords.map((record) => (
-                      <button
-                        aria-selected={selectedId === record.id}
-                        className={selectedId === record.id ? "playground-option is-active" : "playground-option"}
-                        key={record.id}
-                        onClick={() => selectRecord(record)}
-                        type="button"
-                      >
-                        <span>{record.studentName}</span>
-                        <small>{hasIncompleteScore(record) ? "未完成" : "已完成"}</small>
-                      </button>
-                    ))}
-                  </div>
-                </article>
-
-                <article className="playground-card">
-                  <h3>多欄 List View</h3>
-                  <p>比較像桌面程式的 list view，可以同時看姓名、狀態和平均分數。</p>
-                  <div className="playground-listview">
-                    <div className="playground-listview-header">
-                      <span>學生</span>
-                      <span>狀態</span>
-                      <span>平均</span>
-                    </div>
-                    {playgroundRecords.map((record) => {
-                      const average = Math.round(
-                        (record.item1 + record.item2 + record.item3 + record.item4 + record.item5 + record.item6) / 6,
-                      );
-
-                      return (
-                        <button
-                          className={playgroundSelectedId.includes(record.id) ? "playground-listview-row is-active" : "playground-listview-row"}
-                          key={record.id}
-                          onClick={() => togglePlaygroundRecord(record.id)}
-                          type="button"
-                        >
-                          <span>{record.studentName}</span>
-                          <span>{hasIncompleteScore(record) ? "未完成" : "完成"}</span>
-                          <span>{average}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </article>
-
-                <article className="playground-card playground-card-wide">
-                  <h3>嵌入式 Excel 風格</h3>
-                  <p>這個原型比較接近你想要的方向，先選格，再直接在格內編輯，也支援從 Google Sheets 或 Excel 直接貼上多格資料。</p>
-                  <div className="table-wrap">
-                    <table className="sheet-playground">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          {playgroundSheetHeaders.map((header) => (
-                            <th key={header}>{header}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sheetDraft.map((row, rowIndex) => (
-                          <tr key={`row-${rowIndex}`}>
-                            <td>{rowIndex + 1}</td>
-                            {row.map((cell, columnIndex) => {
-                              const isActive =
-                                sheetActiveCell?.rowIndex === rowIndex &&
-                                sheetActiveCell?.columnIndex === columnIndex;
-
-                              return (
-                                <td key={`cell-${rowIndex}-${columnIndex}`}>
-                                  {isActive ? (
-                                    <input
-                                      autoFocus
-                                      className="sheet-input"
-                                      onKeyDown={(event) =>
-                                        handleSheetKeyDown(event, rowIndex, columnIndex)
-                                      }
-                                      onPaste={(event) =>
-                                        handleSheetPaste(event, rowIndex, columnIndex)
-                                      }
-                                      onBlur={() => setSheetActiveCell(null)}
-                                      onChange={(event) =>
-                                        updateSheetCell(rowIndex, columnIndex, event.target.value)
-                                      }
-                                      value={cell}
-                                    />
-                                  ) : (
-                                    <button
-                                      className="sheet-cell"
-                                      onClick={() => setSheetActiveCell({ rowIndex, columnIndex })}
-                                      type="button"
-                                    >
-                                      {cell || "—"}
-                                    </button>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </article>
-              </div>
-            </section>
-            <section className="panel side-panel">
-              <h2>測試重點</h2>
-              <ul className="plain-list">
-                <li>如果你只想快速選學生，傳統 Listbox 會最單純。</li>
-                <li>如果你想保留桌面軟體感，多欄 List View 會更接近。</li>
-                <li>如果你想要像嵌入式 Excel，第三個原型最值得繼續往下做。</li>
-                <li>第三個原型現在可貼上 Google Sheets / Excel 的 tab 分隔資料，按 Enter 也會跳到下一列。</li>
-              </ul>
             </section>
           </>
         ) : null}

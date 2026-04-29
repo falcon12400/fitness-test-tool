@@ -138,7 +138,7 @@ export async function importWorkbook(file: File): Promise<AppData> {
     schemaVersion: Number(values.schemaVersion),
     testDate: values.testDate || records[0]?.testDate || new Date().toISOString().slice(0, 10),
     itemLabels: JSON.parse(values.itemLabels) as string[],
-    rosterName: values.rosterName || "目前名冊",
+    rosterName: values.rosterName || "星星班",
     rosterEntries: values.rosterEntriesJson
       ? (JSON.parse(values.rosterEntriesJson) as AppData["rosterEntries"])
       : records.map((record, index) => ({

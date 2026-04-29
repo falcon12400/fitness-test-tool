@@ -4,7 +4,7 @@ export const defaultAppData: AppData = {
   schemaVersion: 2,
   testDate: "2026-04-22",
   itemLabels: ["柔軟度", "平衡", "核心", "爆發力", "敏捷", "協調"],
-  rosterName: "目前名冊",
+  rosterName: "星星班",
   rosterEntries: [
     { id: "roster_001", studentName: "王小明", height: "118", weight: "22" },
     { id: "roster_002", studentName: "林小華", height: "121", weight: "23" },
