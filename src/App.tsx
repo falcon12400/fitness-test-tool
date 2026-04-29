@@ -88,10 +88,15 @@ export default function App() {
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
+  const [rosterText, setRosterText] = useState(() => data.rosterStudents.join("\n"));
 
   useEffect(() => {
     saveAppData(data);
   }, [data]);
+
+  useEffect(() => {
+    setRosterText(data.rosterStudents.join("\n"));
+  }, [data.rosterStudents]);
 
   const selectedRecord = useMemo(
     () => data.records.find((record) => record.id === selectedId) ?? null,
@@ -279,14 +284,13 @@ export default function App() {
   }
 
   function updateRosterStudentsText(text: string): void {
-    setData((current) => ({
-      ...current,
-      rosterStudents: normalizeRosterText(text),
-    }));
+    setRosterText(text);
   }
 
   function importRosterToRecords(): void {
-    if (!data.rosterStudents.length) {
+    const normalizedRosterStudents = normalizeRosterText(rosterText);
+
+    if (!normalizedRosterStudents.length) {
       setMessage("目前名冊是空的。");
       return;
     }
@@ -295,7 +299,7 @@ export default function App() {
       data.records.map((record) => [record.studentName, record] as const),
     );
 
-    const nextRecords = data.rosterStudents.map((studentName) => {
+    const nextRecords = normalizedRosterStudents.map((studentName) => {
       const existing = existingMap.get(studentName);
       if (existing) {
         return {
@@ -313,6 +317,7 @@ export default function App() {
 
     setData((current) => ({
       ...current,
+      rosterStudents: normalizedRosterStudents,
       records: nextRecords,
     }));
     setSelectedId(nextRecords[0]?.id ?? "");
@@ -728,7 +733,7 @@ export default function App() {
                   <textarea
                     onChange={(event) => updateRosterStudentsText(event.target.value)}
                     rows={14}
-                    value={data.rosterStudents.join("\n")}
+                    value={rosterText}
                   />
                 </label>
 
