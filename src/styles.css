@@ -106,6 +106,19 @@ button {
   flex-wrap: wrap;
 }
 
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.filter-toggle input {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
 .primary-button,
 .secondary-button,
 .danger-button,
@@ -222,6 +235,10 @@ button {
   border-radius: 14px;
   padding: 12px 14px;
   background: #fff;
+}
+
+.table-search {
+  max-width: 240px;
 }
 
 .table-wrap {

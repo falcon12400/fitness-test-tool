@@ -25,8 +25,8 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "roster", label: "編輯名冊" },
   { key: "metric", label: "測驗項目" },
   { key: "analysis", label: "檢視能力分析" },
-  { key: "pdf", label: "下載PDF" },
   { key: "table", label: "檢視總表" },
+  { key: "pdf", label: "下載PDF" },
 ];
 
 const scoreFields: FitnessField[] = [
@@ -87,6 +87,7 @@ export default function App() {
   const [message, setMessage] = useState("已載入本機資料。");
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
 
   useEffect(() => {
     saveAppData(data);
@@ -113,6 +114,23 @@ export default function App() {
       record.studentName.toLowerCase().includes(normalized),
     );
   }, [data.records, searchText]);
+
+  const tableRecords = useMemo(() => {
+    const baseRecords = showIncompleteOnly
+      ? data.records.filter((record) =>
+          scoreFields.some((field) => !Number.isFinite(record[field]) || record[field] <= 0),
+        )
+      : data.records;
+
+    const normalized = searchText.trim().toLowerCase();
+    if (!normalized) {
+      return baseRecords;
+    }
+
+    return baseRecords.filter((record) =>
+      record.studentName.toLowerCase().includes(normalized),
+    );
+  }, [data.records, searchText, showIncompleteOnly]);
 
   const activeMetricIndex = scoreFields.indexOf(activeMetric);
   const activeMetricLabel = data.itemLabels[activeMetricIndex] ?? activeMetric;
@@ -475,6 +493,14 @@ export default function App() {
                   <p>這一頁預設是列表檢視，點一下儲存格再就地編輯，也能直接選取學生供能力分析使用。</p>
                 </div>
                 <div className="button-row">
+                  <label className="filter-toggle">
+                    <input
+                      checked={showIncompleteOnly}
+                      onChange={(event) => setShowIncompleteOnly(event.target.checked)}
+                      type="checkbox"
+                    />
+                    只看未完成學生
+                  </label>
                   <button
                     className="primary-button"
                     onClick={addTableRow}
@@ -483,6 +509,12 @@ export default function App() {
                     新增列
                   </button>
                 </div>
+                <input
+                  className="search-input table-search"
+                  onChange={(event) => setSearchText(event.target.value)}
+                  placeholder="搜尋學生姓名"
+                  value={searchText}
+                />
               </div>
               <div className="table-wrap">
                 <table className="table-editor">
@@ -495,12 +527,10 @@ export default function App() {
                       <th>{data.itemLabels[3]}</th>
                       <th>{data.itemLabels[4]}</th>
                       <th>{data.itemLabels[5]}</th>
-                      <th>評語</th>
-                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.records.map((record) => (
+                    {tableRecords.map((record) => (
                       <tr
                         className={record.id === selectedId ? "is-selected" : ""}
                         key={record.id}
@@ -517,16 +547,6 @@ export default function App() {
                             })}
                           </td>
                         ))}
-                        <td>{renderTableCell(record, "comment", record.comment)}</td>
-                        <td>
-                          <button
-                            className="row-delete-button"
-                            onClick={() => deleteTableRow(record.id)}
-                            type="button"
-                          >
-                            刪除
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -538,6 +558,7 @@ export default function App() {
               <ul className="plain-list">
                 <li>這一頁預設是列表檢視，不會整排都變成表單。</li>
                 <li>點一下任一格才會進入編輯，按 Enter 或點別處就收起來。</li>
+                <li>勾選「只看未完成學生」後，會列出六項成績中仍有缺漏的學生。</li>
                 <li>如果你想只專注調整某一個項目，請改用單項編輯頁。</li>
               </ul>
             </section>
