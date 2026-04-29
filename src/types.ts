@@ -6,9 +6,18 @@ export type FitnessField =
   | "item5"
   | "item6";
 
+export type RosterEntry = {
+  id: string;
+  studentName: string;
+  height: string;
+  weight: string;
+};
+
 export type FitnessRecord = {
   id: string;
   studentName: string;
+  height: string;
+  weight: string;
   testDate: string;
   item1: number;
   item2: number;
@@ -24,6 +33,6 @@ export type AppData = {
   testDate: string;
   itemLabels: string[];
   rosterName: string;
-  rosterStudents: string[];
+  rosterEntries: RosterEntry[];
   records: FitnessRecord[];
 };

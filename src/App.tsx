@@ -4,7 +4,7 @@ import RadarChart from "./RadarChart";
 import { exportWorkbook, importWorkbook } from "./excel";
 import { defaultAppData } from "./sample-data";
 import { loadAppData, saveAppData } from "./storage";
-import type { AppData, FitnessField, FitnessRecord } from "./types";
+import type { AppData, FitnessField, FitnessRecord, RosterEntry } from "./types";
 
 type TabKey =
   | "table"
@@ -52,6 +52,8 @@ function makeEmptyRecord(testDate: string): FitnessRecord {
   return {
     id: crypto.randomUUID(),
     studentName: "",
+    height: "",
+    weight: "",
     testDate,
     item1: 0,
     item2: 0,
@@ -60,6 +62,15 @@ function makeEmptyRecord(testDate: string): FitnessRecord {
     item5: 0,
     item6: 0,
     comment: "",
+  };
+}
+
+function makeEmptyRosterEntry(): RosterEntry {
+  return {
+    id: crypto.randomUUID(),
+    studentName: "",
+    height: "",
+    weight: "",
   };
 }
 
@@ -77,13 +88,6 @@ function upsertRecord(records: FitnessRecord[], nextRecord: FitnessRecord) {
 function normalizeNumber(value: string): number {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : 0;
-}
-
-function normalizeRosterText(text: string): string[] {
-  return text
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
 
 function parseClipboardGrid(text: string): string[][] {
@@ -107,7 +111,9 @@ export default function App() {
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
-  const [rosterText, setRosterText] = useState(() => data.rosterStudents.join("\n"));
+  const [rosterDraft, setRosterDraft] = useState<RosterEntry[]>(() =>
+    data.rosterEntries.length ? data.rosterEntries : [makeEmptyRosterEntry()],
+  );
   const [playgroundSelectedId, setPlaygroundSelectedId] = useState<string[]>(
     () => data.records[0]?.id ? [data.records[0].id] : [],
   );
@@ -129,8 +135,8 @@ export default function App() {
   }, [data]);
 
   useEffect(() => {
-    setRosterText(data.rosterStudents.join("\n"));
-  }, [data.rosterStudents]);
+    setRosterDraft(data.rosterEntries.length ? data.rosterEntries : [makeEmptyRosterEntry()]);
+  }, [data.rosterEntries]);
 
   const selectedRecord = useMemo(
     () => data.records.find((record) => record.id === selectedId) ?? null,
@@ -320,8 +326,25 @@ export default function App() {
     }));
   }
 
-  function updateRosterStudentsText(text: string): void {
-    setRosterText(text);
+  function updateRosterDraftField(
+    rosterId: string,
+    field: keyof Omit<RosterEntry, "id">,
+    value: string,
+  ): void {
+    setRosterDraft((current) =>
+      current.map((entry) =>
+        entry.id === rosterId
+          ? {
+              ...entry,
+              [field]: value,
+            }
+          : entry,
+      ),
+    );
+  }
+
+  function addRosterRow(): void {
+    setRosterDraft((current) => [...current, makeEmptyRosterEntry()]);
   }
 
   function togglePlaygroundRecord(recordId: string): void {
@@ -411,9 +434,16 @@ export default function App() {
   }
 
   function importRosterToRecords(): void {
-    const normalizedRosterStudents = normalizeRosterText(rosterText);
+    const normalizedRosterEntries = rosterDraft
+      .map((entry) => ({
+        ...entry,
+        studentName: entry.studentName.trim(),
+        height: entry.height.trim(),
+        weight: entry.weight.trim(),
+      }))
+      .filter((entry) => entry.studentName);
 
-    if (!normalizedRosterStudents.length) {
+    if (!normalizedRosterEntries.length) {
       setMessage("目前名冊是空的。");
       return;
     }
@@ -422,27 +452,32 @@ export default function App() {
       data.records.map((record) => [record.studentName, record] as const),
     );
 
-    const nextRecords = normalizedRosterStudents.map((studentName) => {
-      const existing = existingMap.get(studentName);
+    const nextRecords = normalizedRosterEntries.map((entry) => {
+      const existing = existingMap.get(entry.studentName);
       if (existing) {
         return {
           ...existing,
-          studentName,
+          studentName: entry.studentName,
+          height: entry.height,
+          weight: entry.weight,
           testDate: data.testDate,
         };
       }
 
       return {
         ...makeEmptyRecord(data.testDate),
-        studentName,
+        studentName: entry.studentName,
+        height: entry.height,
+        weight: entry.weight,
       };
     });
 
     setData((current) => ({
       ...current,
-      rosterStudents: normalizedRosterStudents,
+      rosterEntries: normalizedRosterEntries,
       records: nextRecords,
     }));
+    setRosterDraft(normalizedRosterEntries);
     setSelectedId(nextRecords[0]?.id ?? "");
     setDraftRecord(nextRecords[0] ?? makeEmptyRecord(data.testDate));
     setMessage("已將名冊匯入目前資料。");
@@ -649,6 +684,8 @@ export default function App() {
                   <thead>
                     <tr>
                       <th>學生姓名</th>
+                      <th>身高</th>
+                      <th>體重</th>
                       <th>{data.itemLabels[0]}</th>
                       <th>{data.itemLabels[1]}</th>
                       <th>{data.itemLabels[2]}</th>
@@ -665,6 +702,8 @@ export default function App() {
                         onClick={() => selectRecord(record)}
                       >
                         <td>{renderTableCell(record, "studentName", record.studentName)}</td>
+                        <td>{renderTableCell(record, "height", record.height)}</td>
+                        <td>{renderTableCell(record, "weight", record.weight)}</td>
                         {scoreFields.map((field) => (
                           <td key={field}>
                             {renderTableCell(record, field, record[field], {
@@ -789,6 +828,20 @@ export default function App() {
                     value={draftRecord.studentName}
                   />
                 </label>
+                <label>
+                  身高
+                  <input
+                    onChange={(event) => updateDraftField("height", event.target.value)}
+                    value={draftRecord.height}
+                  />
+                </label>
+                <label>
+                  體重
+                  <input
+                    onChange={(event) => updateDraftField("weight", event.target.value)}
+                    value={draftRecord.weight}
+                  />
+                </label>
                 {scoreFields.map((field, index) => (
                   <label key={field}>
                     {data.itemLabels[index]}
@@ -851,16 +904,61 @@ export default function App() {
                   />
                 </label>
 
-                <label className="roster-text-editor">
-                  名冊內容（每行一位學生）
-                  <textarea
-                    onChange={(event) => updateRosterStudentsText(event.target.value)}
-                    rows={14}
-                    value={rosterText}
-                  />
-                </label>
+                <div className="table-wrap">
+                  <table className="sheet-playground roster-sheet">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>姓名</th>
+                        <th>身高</th>
+                        <th>體重</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rosterDraft.map((entry, index) => (
+                        <tr key={entry.id}>
+                          <td>{index + 1}</td>
+                          <td>
+                            <input
+                              className="sheet-input"
+                              onChange={(event) =>
+                                updateRosterDraftField(entry.id, "studentName", event.target.value)
+                              }
+                              value={entry.studentName}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="sheet-input"
+                              onChange={(event) =>
+                                updateRosterDraftField(entry.id, "height", event.target.value)
+                              }
+                              value={entry.height}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="sheet-input"
+                              onChange={(event) =>
+                                updateRosterDraftField(entry.id, "weight", event.target.value)
+                              }
+                              value={entry.weight}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
                 <div className="button-row">
+                  <button
+                    className="secondary-button"
+                    onClick={addRosterRow}
+                    type="button"
+                  >
+                    新增列
+                  </button>
                   <button
                     className="primary-button"
                     onClick={importRosterToRecords}
@@ -875,7 +973,7 @@ export default function App() {
               <h2>使用方式</h2>
               <ul className="plain-list">
                 <li>這裡只保留一份目前名冊，不再管理多個班級清單。</li>
-                <li>名冊內容用每行一位學生的方式輸入，最省事。</li>
+                <li>名冊現在改成 Excel 風格表格，可直接逐格輸入姓名、身高與體重。</li>
                 <li>按「儲存」後，會用名冊建立或對齊目前這份測驗資料。</li>
                 <li>如果要切換班級，建議直接匯入該班先前存好的整份資料。</li>
               </ul>
@@ -922,6 +1020,14 @@ export default function App() {
                   <div>
                     <dt>學生姓名</dt>
                     <dd>{selectedRecord.studentName}</dd>
+                  </div>
+                  <div>
+                    <dt>身高</dt>
+                    <dd>{selectedRecord.height || "無"}</dd>
+                  </div>
+                  <div>
+                    <dt>體重</dt>
+                    <dd>{selectedRecord.weight || "無"}</dd>
                   </div>
                   <div>
                     <dt>最高項目</dt>

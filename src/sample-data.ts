@@ -1,15 +1,20 @@
 import type { AppData } from "./types";
 
 export const defaultAppData: AppData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   testDate: "2026-04-22",
   itemLabels: ["柔軟度", "平衡", "核心", "爆發力", "敏捷", "協調"],
   rosterName: "目前名冊",
-  rosterStudents: ["王小明", "林小華"],
+  rosterEntries: [
+    { id: "roster_001", studentName: "王小明", height: "118", weight: "22" },
+    { id: "roster_002", studentName: "林小華", height: "121", weight: "23" },
+  ],
   records: [
     {
       id: "rec_001",
       studentName: "王小明",
+      height: "118",
+      weight: "22",
       testDate: "2026-04-22",
       item1: 12,
       item2: 10,
@@ -22,6 +27,8 @@ export const defaultAppData: AppData = {
     {
       id: "rec_002",
       studentName: "林小華",
+      height: "121",
+      weight: "23",
       testDate: "2026-04-22",
       item1: 9,
       item2: 13,

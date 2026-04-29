@@ -9,6 +9,8 @@ type SystemSheetMap = Record<string, string>;
 function buildVisibleSheet(data: AppData): XLSX.WorkSheet {
   const headerRow = [
     "姓名",
+    "身高",
+    "體重",
     data.itemLabels[0] ?? "測驗項目 1",
     data.itemLabels[1] ?? "測驗項目 2",
     data.itemLabels[2] ?? "測驗項目 3",
@@ -19,6 +21,8 @@ function buildVisibleSheet(data: AppData): XLSX.WorkSheet {
   ];
   const recordRows = data.records.map((record) => [
     record.studentName,
+    record.height,
+    record.weight,
     record.item1,
     record.item2,
     record.item3,
@@ -38,6 +42,8 @@ function buildVisibleSheet(data: AppData): XLSX.WorkSheet {
 
   sheet["!cols"] = [
     { wch: 14 },
+    { wch: 10 },
+    { wch: 10 },
     { wch: 12 },
     { wch: 12 },
     { wch: 12 },
@@ -60,7 +66,7 @@ function buildSystemRows(data: AppData): string[][] {
     ["testDate", data.testDate],
     ["itemLabels", JSON.stringify(data.itemLabels)],
     ["rosterName", data.rosterName],
-    ["rosterStudentsJson", JSON.stringify(data.rosterStudents)],
+    ["rosterEntriesJson", JSON.stringify(data.rosterEntries)],
     ["recordsJson", JSON.stringify(data.records)],
   ];
 }
@@ -123,6 +129,8 @@ export async function importWorkbook(file: File): Promise<AppData> {
 
   const records = parseRecordsJson(values.recordsJson).map((record) => ({
     ...record,
+    height: record.height || "",
+    weight: record.weight || "",
     testDate: values.testDate || record.testDate,
   }));
 
@@ -131,9 +139,14 @@ export async function importWorkbook(file: File): Promise<AppData> {
     testDate: values.testDate || records[0]?.testDate || new Date().toISOString().slice(0, 10),
     itemLabels: JSON.parse(values.itemLabels) as string[],
     rosterName: values.rosterName || "目前名冊",
-    rosterStudents: values.rosterStudentsJson
-      ? (JSON.parse(values.rosterStudentsJson) as string[])
-      : [],
+    rosterEntries: values.rosterEntriesJson
+      ? (JSON.parse(values.rosterEntriesJson) as AppData["rosterEntries"])
+      : records.map((record, index) => ({
+          id: `roster_${index + 1}`,
+          studentName: record.studentName,
+          height: record.height,
+          weight: record.weight,
+        })),
     records,
   };
 }
