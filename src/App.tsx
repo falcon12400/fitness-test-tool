@@ -1065,14 +1065,20 @@ export default function App() {
                   <p>這裡先提供 A4 比例畫布，之後可以繼續加上圖層、文字與模板功能。</p>
                 </div>
               </div>
-              <A4CanvasBoard />
+              <A4CanvasBoard
+                labels={data.itemLabels}
+                record={selectedRecord}
+                rosterName={data.rosterName}
+                testDate={data.testDate}
+              />
             </section>
             <section className="panel side-panel">
               <h2>目前能力</h2>
               <ul className="plain-list">
                 <li>畫布比例固定為 A4 直式。</li>
-                <li>可以直接在畫布上手繪。</li>
-                <li>按鈕會開啟列印視窗，目的地選擇另存為 PDF 即可輸出。</li>
+                <li>會直接帶入目前選到學生的雷達圖與基本資訊。</li>
+                <li>可以再往上疊文字與圖片圖層。</li>
+                <li>按按鈕會直接下載真正的 PDF 檔。</li>
               </ul>
             </section>
           </>
