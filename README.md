@@ -34,6 +34,7 @@ This project now uses relative asset paths, so the built output is suitable for 
 - `docs/product-spec.md`: first-version product scope and feature rules
 - `docs/excel-import-export.md`: Excel import/export contract and hidden JSON strategy
 - `docs/implementation-notes.md`: suggested technical direction and phased rollout
+- `docs/project-handoff.md`: current architecture, feature status, and handoff notes for continuing development on another machine
 
 ## Current App Scope
 
