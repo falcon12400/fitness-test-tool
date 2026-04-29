@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
+import A4CanvasBoard from "./A4CanvasBoard";
 import RadarChart from "./RadarChart";
 import { exportWorkbook, importWorkbook } from "./excel";
 import { defaultAppData } from "./sample-data";
@@ -12,6 +13,7 @@ type TabKey =
   | "editor"
   | "roster"
   | "analysis"
+  | "canvas"
   | "pdf";
 
 type EditableField = keyof FitnessRecord;
@@ -26,6 +28,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "metric", label: "測驗項目" },
   { key: "analysis", label: "檢視能力分析" },
   { key: "table", label: "檢視總表" },
+  { key: "canvas", label: "測試畫布" },
   { key: "pdf", label: "下載PDF" },
 ];
 
@@ -140,6 +143,17 @@ export default function App() {
 
   const activeMetricIndex = scoreFields.indexOf(activeMetric);
   const activeMetricLabel = data.itemLabels[activeMetricIndex] ?? activeMetric;
+  const currentEditableRecords = useMemo(() => {
+    if (activeTab === "table") {
+      return tableRecords;
+    }
+
+    if (activeTab === "metric") {
+      return data.records;
+    }
+
+    return data.records;
+  }, [activeTab, data.records, tableRecords]);
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
@@ -416,6 +430,34 @@ export default function App() {
     setActiveCell(null);
   }
 
+  function moveTableActiveCell(
+    recordId: string,
+    field: EditableField,
+    rowOffset: number,
+  ): void {
+    const currentIndex = currentEditableRecords.findIndex(
+      (record) => record.id === recordId,
+    );
+    if (currentIndex === -1) {
+      setActiveCell(null);
+      return;
+    }
+
+    const nextIndex = Math.max(
+      0,
+      Math.min(currentEditableRecords.length - 1, currentIndex + rowOffset),
+    );
+    const nextRecord = currentEditableRecords[nextIndex];
+    if (!nextRecord) {
+      setActiveCell(null);
+      return;
+    }
+
+    setSelectedId(nextRecord.id);
+    setDraftRecord(nextRecord);
+    setActiveCell({ recordId: nextRecord.id, field });
+  }
+
   async function handleImportChange(
     event: ChangeEvent<HTMLInputElement>,
   ): Promise<void> {
@@ -492,7 +534,17 @@ export default function App() {
             updateTableField(record.id, field, event.target.value)
           }
           onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === "Escape") {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              moveTableActiveCell(
+                record.id,
+                field,
+                event.shiftKey ? -1 : 1,
+              );
+              return;
+            }
+
+            if (event.key === "Escape") {
               stopCellEdit();
             }
           }}
@@ -1000,6 +1052,28 @@ export default function App() {
               ) : (
                 <p>請先從檢視總表選一筆資料。</p>
               )}
+            </section>
+          </>
+        ) : null}
+
+        {activeTab === "canvas" ? (
+          <>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>測試畫布</h2>
+                  <p>這裡先提供 A4 比例畫布，之後可以繼續加上圖層、文字與模板功能。</p>
+                </div>
+              </div>
+              <A4CanvasBoard />
+            </section>
+            <section className="panel side-panel">
+              <h2>目前能力</h2>
+              <ul className="plain-list">
+                <li>畫布比例固定為 A4 直式。</li>
+                <li>可以直接在畫布上手繪。</li>
+                <li>按鈕會開啟列印視窗，目的地選擇另存為 PDF 即可輸出。</li>
+              </ul>
             </section>
           </>
         ) : null}
