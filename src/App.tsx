@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 import RadarChart from "./RadarChart";
 import { exportWorkbook, importWorkbook } from "./excel";
 import { defaultAppData } from "./sample-data";
@@ -84,6 +84,15 @@ function normalizeRosterText(text: string): string[] {
     .split("\n")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseClipboardGrid(text: string): string[][] {
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\n$/, "")
+    .split("\n")
+    .map((row) => row.split("\t"));
 }
 
 export default function App() {
@@ -337,6 +346,68 @@ export default function App() {
           : row,
       ),
     );
+  }
+
+  function applySheetPaste(
+    startRowIndex: number,
+    startColumnIndex: number,
+    clipboardText: string,
+  ): void {
+    const pastedGrid = parseClipboardGrid(clipboardText);
+    if (!pastedGrid.length) {
+      return;
+    }
+
+    setSheetDraft((current) =>
+      current.map((row, rowIndex) =>
+        row.map((cell, columnIndex) => {
+          const pastedRow = pastedGrid[rowIndex - startRowIndex];
+          if (!pastedRow) {
+            return cell;
+          }
+
+          const pastedCell = pastedRow[columnIndex - startColumnIndex];
+          return pastedCell === undefined ? cell : pastedCell;
+        }),
+      ),
+    );
+  }
+
+  function moveSheetActiveCell(
+    rowIndex: number,
+    columnIndex: number,
+    rowOffset: number,
+  ): void {
+    const nextRowIndex = Math.max(
+      0,
+      Math.min(sheetDraft.length - 1, rowIndex + rowOffset),
+    );
+    setSheetActiveCell({ rowIndex: nextRowIndex, columnIndex });
+  }
+
+  function handleSheetPaste(
+    event: ClipboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    columnIndex: number,
+  ): void {
+    const clipboardText = event.clipboardData.getData("text/plain");
+    if (!clipboardText.includes("\t") && !clipboardText.includes("\n")) {
+      return;
+    }
+
+    event.preventDefault();
+    applySheetPaste(rowIndex, columnIndex, clipboardText);
+  }
+
+  function handleSheetKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    columnIndex: number,
+  ): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      moveSheetActiveCell(rowIndex, columnIndex, event.shiftKey ? -1 : 1);
+    }
   }
 
   function importRosterToRecords(): void {
@@ -930,7 +1001,7 @@ export default function App() {
 
                 <article className="playground-card playground-card-wide">
                   <h3>嵌入式 Excel 風格</h3>
-                  <p>這個原型比較接近你想要的方向，先選格，再直接在格內編輯。</p>
+                  <p>這個原型比較接近你想要的方向，先選格，再直接在格內編輯，也支援從 Google Sheets 或 Excel 直接貼上多格資料。</p>
                   <div className="table-wrap">
                     <table className="sheet-playground">
                       <thead>
@@ -956,6 +1027,12 @@ export default function App() {
                                     <input
                                       autoFocus
                                       className="sheet-input"
+                                      onKeyDown={(event) =>
+                                        handleSheetKeyDown(event, rowIndex, columnIndex)
+                                      }
+                                      onPaste={(event) =>
+                                        handleSheetPaste(event, rowIndex, columnIndex)
+                                      }
                                       onBlur={() => setSheetActiveCell(null)}
                                       onChange={(event) =>
                                         updateSheetCell(rowIndex, columnIndex, event.target.value)
@@ -988,6 +1065,7 @@ export default function App() {
                 <li>如果你只想快速選學生，傳統 Listbox 會最單純。</li>
                 <li>如果你想保留桌面軟體感，多欄 List View 會更接近。</li>
                 <li>如果你想要像嵌入式 Excel，第三個原型最值得繼續往下做。</li>
+                <li>第三個原型現在可貼上 Google Sheets / Excel 的 tab 分隔資料，按 Enter 也會跳到下一列。</li>
               </ul>
             </section>
           </>
