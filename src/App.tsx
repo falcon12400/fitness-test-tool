@@ -12,6 +12,7 @@ type TabKey =
   | "editor"
   | "roster"
   | "analysis"
+  | "playground"
   | "pdf";
 
 type EditableField = keyof FitnessRecord;
@@ -26,6 +27,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "metric", label: "測驗項目" },
   { key: "analysis", label: "檢視能力分析" },
   { key: "table", label: "檢視總表" },
+  { key: "playground", label: "測試元件" },
   { key: "pdf", label: "下載PDF" },
 ];
 
@@ -37,6 +39,14 @@ const scoreFields: FitnessField[] = [
   "item5",
   "item6",
 ];
+
+const playgroundSheetHeaders = ["學生姓名", "柔軟度", "平衡", "核心"];
+
+function hasIncompleteScore(record: FitnessRecord): boolean {
+  return scoreFields.some(
+    (field) => !Number.isFinite(record[field]) || record[field] <= 0,
+  );
+}
 
 function makeEmptyRecord(testDate: string): FitnessRecord {
   return {
@@ -89,6 +99,21 @@ export default function App() {
   const [activeMetric, setActiveMetric] = useState<FitnessField>("item1");
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   const [rosterText, setRosterText] = useState(() => data.rosterStudents.join("\n"));
+  const [playgroundSelectedId, setPlaygroundSelectedId] = useState<string[]>(
+    () => data.records[0]?.id ? [data.records[0].id] : [],
+  );
+  const [sheetActiveCell, setSheetActiveCell] = useState<{
+    rowIndex: number;
+    columnIndex: number;
+  } | null>(null);
+  const [sheetDraft, setSheetDraft] = useState<string[][]>(() =>
+    (data.records.length ? data.records : defaultAppData.records).slice(0, 6).map((record) => [
+      record.studentName,
+      String(record.item1),
+      String(record.item2),
+      String(record.item3),
+    ]),
+  );
 
   useEffect(() => {
     saveAppData(data);
@@ -101,6 +126,11 @@ export default function App() {
   const selectedRecord = useMemo(
     () => data.records.find((record) => record.id === selectedId) ?? null,
     [data.records, selectedId],
+  );
+
+  const playgroundRecords = useMemo(
+    () => data.records.slice(0, 8),
+    [data.records],
   );
 
   useEffect(() => {
@@ -122,9 +152,7 @@ export default function App() {
 
   const tableRecords = useMemo(() => {
     const baseRecords = showIncompleteOnly
-      ? data.records.filter((record) =>
-          scoreFields.some((field) => !Number.isFinite(record[field]) || record[field] <= 0),
-        )
+      ? data.records.filter((record) => hasIncompleteScore(record))
       : data.records;
 
     const normalized = searchText.trim().toLowerCase();
@@ -285,6 +313,30 @@ export default function App() {
 
   function updateRosterStudentsText(text: string): void {
     setRosterText(text);
+  }
+
+  function togglePlaygroundRecord(recordId: string): void {
+    setPlaygroundSelectedId((current) =>
+      current.includes(recordId)
+        ? current.filter((id) => id !== recordId)
+        : [...current, recordId],
+    );
+  }
+
+  function updateSheetCell(
+    rowIndex: number,
+    columnIndex: number,
+    nextValue: string,
+  ): void {
+    setSheetDraft((current) =>
+      current.map((row, currentRowIndex) =>
+        currentRowIndex === rowIndex
+          ? row.map((cell, currentColumnIndex) =>
+              currentColumnIndex === columnIndex ? nextValue : cell,
+            )
+          : row,
+      ),
+    );
   }
 
   function importRosterToRecords(): void {
@@ -812,6 +864,131 @@ export default function App() {
               ) : (
                 <p>請先從檢視總表選一筆資料。</p>
               )}
+            </section>
+          </>
+        ) : null}
+
+        {activeTab === "playground" ? (
+          <>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>測試元件</h2>
+                  <p>這一頁專門拿來比較不同 listbox 與類 Excel 互動，方便決定正式版要走哪種手感。</p>
+                </div>
+              </div>
+
+              <div className="playground-grid">
+                <article className="playground-card">
+                  <h3>傳統 Listbox</h3>
+                  <p>單列資訊最少，適合快速點選目前要編輯的學生。</p>
+                  <div className="playground-listbox" role="listbox" aria-label="學生清單">
+                    {playgroundRecords.map((record) => (
+                      <button
+                        aria-selected={selectedId === record.id}
+                        className={selectedId === record.id ? "playground-option is-active" : "playground-option"}
+                        key={record.id}
+                        onClick={() => selectRecord(record)}
+                        type="button"
+                      >
+                        <span>{record.studentName}</span>
+                        <small>{hasIncompleteScore(record) ? "未完成" : "已完成"}</small>
+                      </button>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="playground-card">
+                  <h3>多欄 List View</h3>
+                  <p>比較像桌面程式的 list view，可以同時看姓名、狀態和平均分數。</p>
+                  <div className="playground-listview">
+                    <div className="playground-listview-header">
+                      <span>學生</span>
+                      <span>狀態</span>
+                      <span>平均</span>
+                    </div>
+                    {playgroundRecords.map((record) => {
+                      const average = Math.round(
+                        (record.item1 + record.item2 + record.item3 + record.item4 + record.item5 + record.item6) / 6,
+                      );
+
+                      return (
+                        <button
+                          className={playgroundSelectedId.includes(record.id) ? "playground-listview-row is-active" : "playground-listview-row"}
+                          key={record.id}
+                          onClick={() => togglePlaygroundRecord(record.id)}
+                          type="button"
+                        >
+                          <span>{record.studentName}</span>
+                          <span>{hasIncompleteScore(record) ? "未完成" : "完成"}</span>
+                          <span>{average}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </article>
+
+                <article className="playground-card playground-card-wide">
+                  <h3>嵌入式 Excel 風格</h3>
+                  <p>這個原型比較接近你想要的方向，先選格，再直接在格內編輯。</p>
+                  <div className="table-wrap">
+                    <table className="sheet-playground">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          {playgroundSheetHeaders.map((header) => (
+                            <th key={header}>{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sheetDraft.map((row, rowIndex) => (
+                          <tr key={`row-${rowIndex}`}>
+                            <td>{rowIndex + 1}</td>
+                            {row.map((cell, columnIndex) => {
+                              const isActive =
+                                sheetActiveCell?.rowIndex === rowIndex &&
+                                sheetActiveCell?.columnIndex === columnIndex;
+
+                              return (
+                                <td key={`cell-${rowIndex}-${columnIndex}`}>
+                                  {isActive ? (
+                                    <input
+                                      autoFocus
+                                      className="sheet-input"
+                                      onBlur={() => setSheetActiveCell(null)}
+                                      onChange={(event) =>
+                                        updateSheetCell(rowIndex, columnIndex, event.target.value)
+                                      }
+                                      value={cell}
+                                    />
+                                  ) : (
+                                    <button
+                                      className="sheet-cell"
+                                      onClick={() => setSheetActiveCell({ rowIndex, columnIndex })}
+                                      type="button"
+                                    >
+                                      {cell || "—"}
+                                    </button>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              </div>
+            </section>
+            <section className="panel side-panel">
+              <h2>測試重點</h2>
+              <ul className="plain-list">
+                <li>如果你只想快速選學生，傳統 Listbox 會最單純。</li>
+                <li>如果你想保留桌面軟體感，多欄 List View 會更接近。</li>
+                <li>如果你想要像嵌入式 Excel，第三個原型最值得繼續往下做。</li>
+              </ul>
             </section>
           </>
         ) : null}

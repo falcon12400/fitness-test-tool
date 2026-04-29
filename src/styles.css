@@ -241,6 +241,116 @@ button {
   max-width: 240px;
 }
 
+.playground-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.playground-card {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fcfffe 0%, #f8fafc 100%);
+}
+
+.playground-card h3 {
+  margin: 0 0 8px;
+}
+
+.playground-card p {
+  margin: 0 0 14px;
+}
+
+.playground-card-wide {
+  grid-column: 1 / -1;
+}
+
+.playground-listbox,
+.playground-listview {
+  display: grid;
+  gap: 8px;
+}
+
+.playground-option,
+.playground-listview-row {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d6dbe5;
+  border-radius: 14px;
+  background: #fff;
+  color: #172033;
+  text-align: left;
+}
+
+.playground-option {
+  grid-template-columns: 1fr auto;
+}
+
+.playground-option small,
+.playground-listview-row span:last-child,
+.playground-listview-row span:nth-child(2) {
+  color: #64748b;
+}
+
+.playground-option.is-active,
+.playground-listview-row.is-active {
+  border-color: #0f766e;
+  background: #ecfeff;
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.18);
+}
+
+.playground-listview-header,
+.playground-listview-row {
+  grid-template-columns: 1.4fr 0.8fr 0.6fr;
+}
+
+.playground-listview-header {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 6px;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sheet-playground {
+  min-width: 640px;
+}
+
+.sheet-playground th,
+.sheet-playground td {
+  padding: 0;
+  border: 1px solid #e2e8f0;
+}
+
+.sheet-playground th {
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.sheet-cell,
+.sheet-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  background: #fff;
+  color: #172033;
+  text-align: left;
+}
+
+.sheet-cell:hover {
+  background: #f8fafc;
+}
+
+.sheet-input {
+  outline: 2px solid #0f766e;
+  outline-offset: -2px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -486,6 +596,14 @@ tbody tr.is-selected {
 
   .panel-grid {
     grid-template-columns: 1fr;
+  }
+
+  .playground-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .playground-card-wide {
+    grid-column: auto;
   }
 }
 
