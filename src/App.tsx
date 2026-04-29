@@ -7,14 +7,12 @@ import { loadAppData, saveAppData } from "./storage";
 import type { AppData, FitnessField, FitnessRecord } from "./types";
 
 type TabKey =
-  | "records"
   | "table"
   | "metric"
   | "editor"
   | "roster"
   | "analysis"
-  | "transfer"
-  | "docs";
+  | "pdf";
 
 type EditableField = keyof FitnessRecord;
 
@@ -24,14 +22,11 @@ type ActiveCell = {
 } | null;
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "records", label: "首頁" },
   { key: "roster", label: "編輯名冊" },
-  { key: "table", label: "資料表編輯" },
-  { key: "metric", label: "單項編輯" },
-  { key: "editor", label: "單筆編輯" },
-  { key: "analysis", label: "雷達圖分析" },
-  { key: "transfer", label: "匯入匯出" },
-  { key: "docs", label: "規格說明" },
+  { key: "metric", label: "測驗項目" },
+  { key: "analysis", label: "檢視能力分析" },
+  { key: "pdf", label: "下載PDF" },
+  { key: "table", label: "檢視總表" },
 ];
 
 const scoreFields: FitnessField[] = [
@@ -83,7 +78,7 @@ function normalizeRosterText(text: string): string[] {
 
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadAppData() ?? defaultAppData);
-  const [activeTab, setActiveTab] = useState<TabKey>("records");
+  const [activeTab, setActiveTab] = useState<TabKey>("roster");
   const [selectedId, setSelectedId] = useState<string>(data.records[0]?.id ?? "");
   const [draftRecord, setDraftRecord] = useState<FitnessRecord>(
     data.records[0] ?? makeEmptyRecord(data.testDate),
@@ -161,7 +156,7 @@ export default function App() {
     setData((current) => ({ ...current, records: nextRecords }));
     setSelectedId(normalized.id);
     setDraftRecord(normalized);
-    setActiveTab("records");
+    setActiveTab("table");
     setMessage("資料已儲存。");
   }
 
@@ -338,6 +333,10 @@ export default function App() {
     }
   }
 
+  function handlePrintPdf(): void {
+    window.print();
+  }
+
   function handleExport(): void {
     exportWorkbook(data);
     setMessage("Excel 已匯出。");
@@ -467,102 +466,13 @@ export default function App() {
       </nav>
 
       <main className="panel-grid">
-        {activeTab === "records" ? (
-          <>
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>資料列表</h2>
-                  <p>可搜尋學生並選取單筆資料。</p>
-                </div>
-                <input
-                  className="search-input"
-                  onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="搜尋學生姓名"
-                  value={searchText}
-                />
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>學生姓名</th>
-                      <th>{data.itemLabels[0]}</th>
-                      <th>{data.itemLabels[1]}</th>
-                      <th>{data.itemLabels[2]}</th>
-                      <th>{data.itemLabels[3]}</th>
-                      <th>{data.itemLabels[4]}</th>
-                      <th>{data.itemLabels[5]}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRecords.map((record) => (
-                      <tr
-                        className={record.id === selectedId ? "is-selected" : ""}
-                        key={record.id}
-                        onClick={() => selectRecord(record)}
-                      >
-                        <td>{record.studentName}</td>
-                        <td>{record.item1}</td>
-                        <td>{record.item2}</td>
-                        <td>{record.item3}</td>
-                        <td>{record.item4}</td>
-                        <td>{record.item5}</td>
-                        <td>{record.item6}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-            <section className="panel side-panel">
-              <h2>目前選取</h2>
-              {selectedRecord ? (
-                <>
-                  <dl className="detail-list">
-                    <div>
-                      <dt>學生姓名</dt>
-                      <dd>{selectedRecord.studentName}</dd>
-                    </div>
-                    <div>
-                      <dt>評語</dt>
-                      <dd>{selectedRecord.comment || "無"}</dd>
-                    </div>
-                  </dl>
-                  <div className="button-row">
-                    <button
-                      className="primary-button"
-                      onClick={() => {
-                        setDraftRecord(selectedRecord);
-                        setActiveTab("editor");
-                      }}
-                      type="button"
-                    >
-                      單筆編輯
-                    </button>
-                    <button
-                      className="secondary-button"
-                      onClick={() => setActiveTab("analysis")}
-                      type="button"
-                    >
-                      查看雷達圖
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p>尚未選取任何資料。</p>
-              )}
-            </section>
-          </>
-        ) : null}
-
         {activeTab === "table" ? (
           <>
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>資料表編輯</h2>
-                  <p>這一頁預設是列表檢視，點一下儲存格再就地編輯。</p>
+                  <h2>檢視總表</h2>
+                  <p>這一頁預設是列表檢視，點一下儲存格再就地編輯，也能直接選取學生供能力分析使用。</p>
                 </div>
                 <div className="button-row">
                   <button
@@ -639,7 +549,7 @@ export default function App() {
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>單項編輯</h2>
+                  <h2>測驗項目</h2>
                   <p>一次只處理一個測驗欄位，適合全班統一補分、修分或更改欄位名稱。</p>
                 </div>
               </div>
@@ -829,7 +739,7 @@ export default function App() {
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>雷達圖分析</h2>
+                  <h2>檢視能力分析</h2>
                   <p>快速查看單一學生六項測驗分布。</p>
                 </div>
                 <label className="shared-date-field">
@@ -874,26 +784,29 @@ export default function App() {
                   </div>
                 </dl>
               ) : (
-                <p>請先從資料列表或資料表編輯頁選一筆資料。</p>
+                <p>請先從檢視總表選一筆資料。</p>
               )}
             </section>
           </>
         ) : null}
 
-        {activeTab === "transfer" ? (
+        {activeTab === "pdf" ? (
           <>
             <section className="panel">
               <div className="panel-header">
                 <div>
-                  <h2>匯入匯出</h2>
-                  <p>Excel 主要用於檢視、備份、列印與跨電腦攜帶。</p>
+                  <h2>下載PDF</h2>
+                  <p>先用瀏覽器列印功能輸出 PDF，適合留存、列印或交付紙本。</p>
                 </div>
               </div>
               <div className="callout">
-                匯出的 Excel 檔案主要用於檢視、備份與列印，不建議直接修改其中內容。若需修改資料，請回到網頁系統操作，以避免匯入失敗或資料不一致。
+                點下面按鈕後，會開啟瀏覽器列印視窗。目的地選擇「另存為 PDF」就可以下載 PDF。
               </div>
               <div className="button-row">
-                <button className="primary-button" onClick={handleExport} type="button">
+                <button className="primary-button" onClick={handlePrintPdf} type="button">
+                  開啟列印 / 下載 PDF
+                </button>
+                <button className="secondary-button" onClick={handleExport} type="button">
                   匯出 Excel
                 </button>
                 <label className="file-button">
@@ -907,37 +820,11 @@ export default function App() {
               </div>
             </section>
             <section className="panel side-panel">
-              <h2>目前策略</h2>
+              <h2>使用方式</h2>
               <ul className="plain-list">
-                <li>可見工作表只提供閱讀。</li>
-                <li>系統匯入時以隱藏 `_system` 工作表中的 JSON 為準。</li>
-                <li>若檔案缺少 `_system`，匯入將失敗。</li>
-              </ul>
-            </section>
-          </>
-        ) : null}
-
-        {activeTab === "docs" ? (
-          <>
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>規格文件</h2>
-                  <p>目前規劃文件已放在專案資料夾內，供後續設計與開發使用。</p>
-                </div>
-              </div>
-              <ul className="doc-list">
-                <li>`docs/product-spec.md`</li>
-                <li>`docs/excel-import-export.md`</li>
-                <li>`docs/implementation-notes.md`</li>
-              </ul>
-            </section>
-            <section className="panel side-panel">
-              <h2>下一步建議</h2>
-              <ul className="plain-list">
-                <li>補上名冊貼上 CSV 或 Excel 的功能。</li>
-                <li>補上單項編輯的批次加減分功能。</li>
-                <li>加入歷次測驗紀錄與前後測比較。</li>
+                <li>PDF 適合列印、存檔與交給家長或行政單位查看。</li>
+                <li>Excel 仍然保留給備份、搬移與重新匯入使用。</li>
+                <li>若匯入的 Excel 缺少 `_system` 工作表，系統會拒絕載入。</li>
               </ul>
             </section>
           </>
