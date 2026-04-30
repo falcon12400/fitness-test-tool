@@ -243,6 +243,8 @@ button {
 
 .sheet-playground {
   min-width: 640px;
+  width: max-content;
+  table-layout: auto;
 }
 
 .sheet-shell {
@@ -366,6 +368,8 @@ tbody tr.is-selected {
 }
 
 .summary-sheet {
+  min-width: 1120px;
+  width: max-content;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -704,11 +708,6 @@ tbody tr.is-selected {
   .sheet-zoom-button {
     padding: 7px 10px;
     font-size: 0.82rem;
-  }
-
-  .sheet-playground {
-    min-width: 0;
-    table-layout: fixed;
   }
 
   .sheet-playground th,
