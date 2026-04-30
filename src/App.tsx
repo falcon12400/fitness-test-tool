@@ -51,9 +51,6 @@ const SHEET_ZOOM_OPTIONS: Array<{ label: string; value: SheetZoomMode }> = [
   { label: "110%", value: 1.1 },
 ];
 
-const ROSTER_SHEET_BASE_WIDTH = 640;
-const TABLE_SHEET_BASE_WIDTH = 1120;
-
 function hasIncompleteScore(record: FitnessRecord): boolean {
   return scoreFields.some(
     (field) => !Number.isFinite(record[field]) || record[field] <= 0,
@@ -133,8 +130,12 @@ export default function App() {
   const [tableZoomMode, setTableZoomMode] = useState<SheetZoomMode>("fit");
   const [rosterViewportWidth, setRosterViewportWidth] = useState(0);
   const [tableViewportWidth, setTableViewportWidth] = useState(0);
+  const [rosterNaturalWidth, setRosterNaturalWidth] = useState(640);
+  const [tableNaturalWidth, setTableNaturalWidth] = useState(1120);
   const rosterViewportRef = useRef<HTMLDivElement | null>(null);
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
+  const rosterTableRef = useRef<HTMLTableElement | null>(null);
+  const tableTableRef = useRef<HTMLTableElement | null>(null);
   const previousRosterScaleRef = useRef(1);
   const previousTableScaleRef = useRef(1);
   useEffect(() => {
@@ -178,45 +179,45 @@ export default function App() {
 
   useEffect(() => {
     const nextViewport = rosterViewportRef.current;
-    if (!nextViewport) {
+    const nextTable = rosterTableRef.current;
+    if (!nextViewport || !nextTable) {
       return;
     }
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) {
-        return;
-      }
-
-      setRosterViewportWidth(entry.contentRect.width);
+    const resizeObserver = new ResizeObserver(() => {
+      setRosterViewportWidth(nextViewport.clientWidth);
+      setRosterNaturalWidth(nextTable.scrollWidth);
     });
     resizeObserver.observe(nextViewport);
+    resizeObserver.observe(nextTable);
+    setRosterViewportWidth(nextViewport.clientWidth);
+    setRosterNaturalWidth(nextTable.scrollWidth);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [rosterDraft, rosterZoomMode]);
 
   useEffect(() => {
     const nextViewport = tableViewportRef.current;
-    if (!nextViewport) {
+    const nextTable = tableTableRef.current;
+    if (!nextViewport || !nextTable) {
       return;
     }
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) {
-        return;
-      }
-
-      setTableViewportWidth(entry.contentRect.width);
+    const resizeObserver = new ResizeObserver(() => {
+      setTableViewportWidth(nextViewport.clientWidth);
+      setTableNaturalWidth(nextTable.scrollWidth);
     });
     resizeObserver.observe(nextViewport);
+    resizeObserver.observe(nextTable);
+    setTableViewportWidth(nextViewport.clientWidth);
+    setTableNaturalWidth(nextTable.scrollWidth);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [tableRecords, tableZoomMode, data.itemLabels]);
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
@@ -671,12 +672,12 @@ export default function App() {
   const rosterScale = resolveSheetScale(
     rosterZoomMode,
     rosterViewportWidth,
-    ROSTER_SHEET_BASE_WIDTH,
+    rosterNaturalWidth,
   );
   const tableScale = resolveSheetScale(
     tableZoomMode,
     tableViewportWidth,
-    TABLE_SHEET_BASE_WIDTH,
+    tableNaturalWidth,
   );
 
   useEffect(() => {
@@ -796,12 +797,13 @@ export default function App() {
                   <div
                     className="sheet-zoom-stage"
                     style={{
-                      width: `${TABLE_SHEET_BASE_WIDTH * tableScale}px`,
+                      width: `${tableNaturalWidth * tableScale}px`,
                       height: "100%",
                     }}
                   >
                     <table
                       className="table-editor sheet-playground summary-sheet"
+                      ref={tableTableRef}
                       style={{
                         transform: `scale(${tableScale})`,
                         transformOrigin: "top left",
@@ -809,7 +811,7 @@ export default function App() {
                     >
                       <thead>
                         <tr>
-                          <th>學生姓名</th>
+                          <th className="is-frozen-column">學生姓名</th>
                           <th>身高</th>
                           <th>體重</th>
                           <th>{data.itemLabels[0]}</th>
@@ -827,7 +829,9 @@ export default function App() {
                             key={record.id}
                             onClick={() => selectRecord(record)}
                           >
-                            <td>{renderTableCell(record, "studentName", record.studentName)}</td>
+                            <td className="is-frozen-column">
+                              {renderTableCell(record, "studentName", record.studentName)}
+                            </td>
                             <td>{renderTableCell(record, "height", record.height)}</td>
                             <td>{renderTableCell(record, "weight", record.weight)}</td>
                             {scoreFields.map((field) => (
@@ -1000,20 +1004,21 @@ export default function App() {
                     <div
                       className="sheet-zoom-stage"
                       style={{
-                        width: `${ROSTER_SHEET_BASE_WIDTH * rosterScale}px`,
+                        width: `${rosterNaturalWidth * rosterScale}px`,
                         height: "100%",
                       }}
                     >
                       <table
-                        className="sheet-playground roster-sheet"
-                        style={{
-                          transform: `scale(${rosterScale})`,
-                          transformOrigin: "top left",
+                      className="sheet-playground roster-sheet"
+                      ref={rosterTableRef}
+                      style={{
+                        transform: `scale(${rosterScale})`,
+                        transformOrigin: "top left",
                         }}
                       >
                         <thead>
                           <tr>
-                            <th>#</th>
+                            <th className="is-frozen-column">#</th>
                             <th>姓名</th>
                             <th>身高</th>
                             <th>體重</th>
@@ -1022,7 +1027,7 @@ export default function App() {
                         <tbody>
                           {rosterDraft.map((entry, index) => (
                             <tr key={entry.id}>
-                              <td>{index + 1}</td>
+                              <td className="is-frozen-column">{index + 1}</td>
                               <td>
                                 {rosterActiveCell?.rowIndex === index &&
                                 rosterActiveCell?.columnIndex === 0 ? (
