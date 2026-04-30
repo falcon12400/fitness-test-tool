@@ -812,7 +812,6 @@ export default function App() {
     rosterZoomMode,
     rosterViewportWidth,
     rosterNaturalWidth,
-    1,
   );
   const tableScale = resolveSheetScale(
     tableZoomMode,
