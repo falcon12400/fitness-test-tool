@@ -715,8 +715,17 @@ tbody tr.is-selected {
     font-size: 0.92rem;
   }
 
+  .roster-sheet th,
+  .roster-sheet td {
+    font-size: 1rem;
+  }
+
   .sheet-playground th {
     padding: 8px 6px;
+  }
+
+  .roster-sheet th {
+    padding: 10px 8px;
   }
 
   .sheet-cell,
@@ -724,6 +733,13 @@ tbody tr.is-selected {
     min-height: 40px;
     padding: 8px 6px;
     font-size: 0.92rem;
+  }
+
+  .roster-sheet .sheet-cell,
+  .roster-sheet .sheet-input {
+    min-height: 44px;
+    padding: 10px 8px;
+    font-size: 1rem;
   }
 
   .table-editor {
