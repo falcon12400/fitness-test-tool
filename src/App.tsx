@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
+import type {
+  CSSProperties,
+  ChangeEvent,
+  ClipboardEvent,
+  KeyboardEvent,
+} from "react";
 import A4CanvasBoard from "./A4CanvasBoard";
+import {
+  loadDebugSettings,
+  type DebugSettings,
+} from "./debug-settings";
 import RadarChart from "./RadarChart";
 import { exportWorkbook, importWorkbook } from "./excel";
 import { defaultAppData } from "./sample-data";
@@ -138,6 +147,9 @@ export default function App() {
   const [rosterNaturalWidth, setRosterNaturalWidth] = useState(640);
   const [tableNaturalWidth, setTableNaturalWidth] = useState(1120);
   const [metricNaturalWidth, setMetricNaturalWidth] = useState(520);
+  const [debugSettings, setDebugSettings] = useState<DebugSettings>(() =>
+    loadDebugSettings(),
+  );
   const rosterViewportRef = useRef<HTMLDivElement | null>(null);
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
   const metricViewportRef = useRef<HTMLDivElement | null>(null);
@@ -158,6 +170,20 @@ export default function App() {
   useEffect(() => {
     setRosterSizeInput(String(Math.max(rosterDraft.length, 1)));
   }, [rosterDraft.length]);
+
+  useEffect(() => {
+    const reloadDebugSettings = () => {
+      setDebugSettings(loadDebugSettings());
+    };
+
+    window.addEventListener("focus", reloadDebugSettings);
+    window.addEventListener("storage", reloadDebugSettings);
+
+    return () => {
+      window.removeEventListener("focus", reloadDebugSettings);
+      window.removeEventListener("storage", reloadDebugSettings);
+    };
+  }, []);
 
   const selectedRecord = useMemo(
     () => data.records.find((record) => record.id === selectedId) ?? null,
@@ -765,7 +791,10 @@ export default function App() {
       return;
     }
 
-    const maxScrollLeft = Math.max(0, scaledWidth - viewport.clientWidth);
+    const maxScrollLeft = Math.max(
+      0,
+      scaledWidth + debugSettings.sheetScrollRightPadding - viewport.clientWidth,
+    );
     if (viewport.scrollLeft > maxScrollLeft) {
       viewport.scrollLeft = maxScrollLeft;
     }
@@ -845,8 +874,40 @@ export default function App() {
     );
   }
 
+  function renderSheetDebugInfo(values: {
+    viewportWidth: number;
+    naturalWidth: number;
+    scale: number;
+    scrollLeft: number;
+  }) {
+    const scaledWidth = values.naturalWidth * values.scale;
+    const maxScrollLeft = Math.max(
+      0,
+      scaledWidth + debugSettings.sheetScrollRightPadding - values.viewportWidth,
+    );
+
+    return (
+      <div className="sheet-debug">
+        {`vw:${values.viewportWidth.toFixed(1)} | nw:${values.naturalWidth.toFixed(1)} | scale:${values.scale.toFixed(3)} | sw:${scaledWidth.toFixed(1)} | pad:${debugSettings.sheetScrollRightPadding} | max:${maxScrollLeft.toFixed(1)} | left:${values.scrollLeft.toFixed(1)}`}
+      </div>
+    );
+  }
+
+  function getViewportMaxHeight(rowHeight: number): string {
+    const headerHeight = 54;
+    const rowsHeight = rowHeight * debugSettings.sheetVisibleRows;
+    return `${headerHeight + rowsHeight}px`;
+  }
+
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      style={
+        {
+          "--summary-frozen-column-width": `${debugSettings.summaryFrozenColumnWidth}px`,
+        } as CSSProperties
+      }
+    >
       <header className="hero">
         <div>
           <p className="eyebrow">新北市運動遊戲體育協會</p>
@@ -916,6 +977,14 @@ export default function App() {
               </div>
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(tableZoomMode, setTableZoomMode)}
+                {debugSettings.showSheetDebug
+                  ? renderSheetDebugInfo({
+                      viewportWidth: tableViewportWidth,
+                      naturalWidth: tableNaturalWidth,
+                      scale: tableScale,
+                      scrollLeft: tableViewportRef.current?.scrollLeft ?? 0,
+                    })
+                  : null}
                 <div
                   className="sheet-viewport sheet-viewport-capped table-wrap"
                   onScroll={() =>
@@ -925,6 +994,7 @@ export default function App() {
                     )
                   }
                   ref={tableViewportRef}
+                  style={{ maxHeight: getViewportMaxHeight(54) }}
                 >
                   <div
                     className="sheet-zoom-stage"
@@ -1012,6 +1082,14 @@ export default function App() {
 
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(metricZoomMode, setMetricZoomMode)}
+                {debugSettings.showSheetDebug
+                  ? renderSheetDebugInfo({
+                      viewportWidth: metricViewportWidth,
+                      naturalWidth: metricNaturalWidth,
+                      scale: metricScale,
+                      scrollLeft: metricViewportRef.current?.scrollLeft ?? 0,
+                    })
+                  : null}
                 <div
                   className="sheet-viewport sheet-viewport-capped table-wrap"
                   onScroll={() =>
@@ -1021,6 +1099,7 @@ export default function App() {
                     )
                   }
                   ref={metricViewportRef}
+                  style={{ maxHeight: getViewportMaxHeight(54) }}
                 >
                   <div
                     className="sheet-zoom-stage"
@@ -1175,6 +1254,14 @@ export default function App() {
 
                 <div className="sheet-shell">
                   {renderSheetZoomToolbar(rosterZoomMode, setRosterZoomMode)}
+                  {debugSettings.showSheetDebug
+                    ? renderSheetDebugInfo({
+                        viewportWidth: rosterViewportWidth,
+                        naturalWidth: rosterNaturalWidth,
+                        scale: rosterScale,
+                        scrollLeft: rosterViewportRef.current?.scrollLeft ?? 0,
+                      })
+                    : null}
                   <div
                     className="sheet-viewport sheet-viewport-capped table-wrap"
                     onScroll={() =>
@@ -1184,6 +1271,7 @@ export default function App() {
                       )
                     }
                     ref={rosterViewportRef}
+                    style={{ maxHeight: getViewportMaxHeight(50) }}
                   >
                     <div
                       className="sheet-zoom-stage"
