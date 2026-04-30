@@ -862,7 +862,7 @@ tbody tr.is-selected {
 
   .roster-sheet th,
   .roster-sheet td {
-    font-size: 1.08rem;
+    font-size: 1.18rem;
   }
 
   .sheet-playground th {
@@ -871,7 +871,7 @@ tbody tr.is-selected {
 
   .roster-sheet th {
     padding: 10px 6px;
-    font-size: 1.12rem;
+    font-size: 1.24rem;
   }
 
   .sheet-cell,
@@ -883,9 +883,9 @@ tbody tr.is-selected {
 
   .roster-sheet .sheet-cell,
   .roster-sheet .sheet-input {
-    min-height: 46px;
-    padding: 11px 6px;
-    font-size: 1.08rem;
+    min-height: 50px;
+    padding: 12px 6px;
+    font-size: 1.18rem;
   }
 
   .table-editor {
