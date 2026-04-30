@@ -191,14 +191,17 @@ export default function App() {
       return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
+    const measureRosterWidth = () => {
       setRosterViewportWidth(nextViewport.clientWidth);
-      setRosterNaturalWidth(nextTable.scrollWidth);
+      setRosterNaturalWidth(nextTable.offsetWidth);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureRosterWidth();
     });
     resizeObserver.observe(nextViewport);
     resizeObserver.observe(nextTable);
-    setRosterViewportWidth(nextViewport.clientWidth);
-    setRosterNaturalWidth(nextTable.scrollWidth);
+    measureRosterWidth();
 
     return () => {
       resizeObserver.disconnect();
@@ -212,14 +215,17 @@ export default function App() {
       return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
+    const measureTableWidth = () => {
       setTableViewportWidth(nextViewport.clientWidth);
-      setTableNaturalWidth(nextTable.scrollWidth);
+      setTableNaturalWidth(nextTable.offsetWidth);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureTableWidth();
     });
     resizeObserver.observe(nextViewport);
     resizeObserver.observe(nextTable);
-    setTableViewportWidth(nextViewport.clientWidth);
-    setTableNaturalWidth(nextTable.scrollWidth);
+    measureTableWidth();
 
     return () => {
       resizeObserver.disconnect();
