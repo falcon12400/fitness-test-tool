@@ -247,6 +247,28 @@ button {
   table-layout: auto;
 }
 
+.roster-sheet {
+  min-width: 430px;
+}
+
+.roster-sheet th:nth-child(1),
+.roster-sheet td:nth-child(1) {
+  min-width: 42px;
+  width: 42px;
+}
+
+.roster-sheet th:nth-child(2),
+.roster-sheet td:nth-child(2) {
+  min-width: 148px;
+}
+
+.roster-sheet th:nth-child(3),
+.roster-sheet td:nth-child(3),
+.roster-sheet th:nth-child(4),
+.roster-sheet td:nth-child(4) {
+  min-width: 72px;
+}
+
 .sheet-shell {
   display: grid;
   gap: 12px;
