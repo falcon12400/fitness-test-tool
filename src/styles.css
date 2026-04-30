@@ -413,6 +413,12 @@ tbody tr.is-selected {
   border: 1px solid #e2e8f0;
 }
 
+.summary-sheet th:first-child,
+.summary-sheet td:first-child {
+  min-width: 124px;
+  width: 124px;
+}
+
 .summary-sheet thead th {
   border-bottom: 1px solid #dbe4ee;
 }
