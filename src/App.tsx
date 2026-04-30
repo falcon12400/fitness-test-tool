@@ -131,16 +131,22 @@ export default function App() {
   );
   const [rosterZoomMode, setRosterZoomMode] = useState<SheetZoomMode>("fit");
   const [tableZoomMode, setTableZoomMode] = useState<SheetZoomMode>("fit");
+  const [metricZoomMode, setMetricZoomMode] = useState<SheetZoomMode>("fit");
   const [rosterViewportWidth, setRosterViewportWidth] = useState(0);
   const [tableViewportWidth, setTableViewportWidth] = useState(0);
+  const [metricViewportWidth, setMetricViewportWidth] = useState(0);
   const [rosterNaturalWidth, setRosterNaturalWidth] = useState(640);
   const [tableNaturalWidth, setTableNaturalWidth] = useState(1120);
+  const [metricNaturalWidth, setMetricNaturalWidth] = useState(520);
   const rosterViewportRef = useRef<HTMLDivElement | null>(null);
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
+  const metricViewportRef = useRef<HTMLDivElement | null>(null);
   const rosterTableRef = useRef<HTMLTableElement | null>(null);
   const tableTableRef = useRef<HTMLTableElement | null>(null);
+  const metricTableRef = useRef<HTMLTableElement | null>(null);
   const previousRosterScaleRef = useRef(1);
   const previousTableScaleRef = useRef(1);
+  const previousMetricScaleRef = useRef(1);
   useEffect(() => {
     saveAppData(data);
   }, [data]);
@@ -231,6 +237,30 @@ export default function App() {
       resizeObserver.disconnect();
     };
   }, [tableRecords, tableZoomMode, data.itemLabels]);
+
+  useEffect(() => {
+    const nextViewport = metricViewportRef.current;
+    const nextTable = metricTableRef.current;
+    if (!nextViewport || !nextTable) {
+      return;
+    }
+
+    const measureMetricWidth = () => {
+      setMetricViewportWidth(nextViewport.clientWidth);
+      setMetricNaturalWidth(nextTable.offsetWidth);
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureMetricWidth();
+    });
+    resizeObserver.observe(nextViewport);
+    resizeObserver.observe(nextTable);
+    measureMetricWidth();
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [data.records, activeMetric, metricZoomMode, activeMetricLabel]);
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
@@ -737,6 +767,11 @@ export default function App() {
     tableViewportWidth,
     tableNaturalWidth,
   );
+  const metricScale = resolveSheetScale(
+    metricZoomMode,
+    metricViewportWidth,
+    metricNaturalWidth,
+  );
 
   useEffect(() => {
     preserveViewportPosition(
@@ -755,6 +790,15 @@ export default function App() {
     );
     previousTableScaleRef.current = tableScale;
   }, [tableScale]);
+
+  useEffect(() => {
+    preserveViewportPosition(
+      metricViewportRef.current,
+      previousMetricScaleRef.current,
+      metricScale,
+    );
+    previousMetricScaleRef.current = metricScale;
+  }, [metricScale]);
 
   function renderSheetZoomToolbar(
     currentMode: SheetZoomMode,
@@ -936,34 +980,52 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="table-wrap">
-                <table className="table-editor metric-editor">
-                  <thead>
-                    <tr>
-                      <th>學生姓名</th>
-                      <th>{activeMetricLabel}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.records.map((record) => (
-                      <tr
-                        className={record.id === selectedId ? "is-selected" : ""}
-                        key={record.id}
-                        onClick={() => selectRecord(record)}
-                      >
-                        <td>{record.studentName}</td>
-                        <td>
-                          {renderTableCell(record, activeMetric, record[activeMetric], {
-                            inputType: "number",
-                            min: 0,
-                            step: 1,
-                            className: "cell-input-number",
-                          })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="sheet-shell">
+                {renderSheetZoomToolbar(metricZoomMode, setMetricZoomMode)}
+                <div className="sheet-viewport table-wrap" ref={metricViewportRef}>
+                  <div
+                    className="sheet-zoom-stage"
+                    style={{
+                      width: `${metricNaturalWidth * metricScale}px`,
+                      height: "100%",
+                    }}
+                  >
+                    <table
+                      className="table-editor metric-editor sheet-playground summary-sheet"
+                      ref={metricTableRef}
+                      style={{
+                        transform: `scale(${metricScale})`,
+                        transformOrigin: "top left",
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th className="is-frozen-column">學生姓名</th>
+                          <th>{activeMetricLabel}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.records.map((record) => (
+                          <tr
+                            className={record.id === selectedId ? "is-selected" : ""}
+                            key={record.id}
+                            onClick={() => selectRecord(record)}
+                          >
+                            <td className="is-frozen-column">{record.studentName}</td>
+                            <td>
+                              {renderTableCell(record, activeMetric, record[activeMetric], {
+                                inputType: "number",
+                                min: 0,
+                                step: 1,
+                                className: "cell-input-number",
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </section>
           </>
