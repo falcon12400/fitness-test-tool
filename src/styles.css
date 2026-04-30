@@ -334,15 +334,16 @@ button {
 
 .roster-sheet th:nth-child(2),
 .roster-sheet td:nth-child(2) {
-  min-width: 116px;
-  width: 116px;
+  min-width: 70px;
+  width: 70px;
 }
 
 .roster-sheet th:nth-child(3),
 .roster-sheet td:nth-child(3),
 .roster-sheet th:nth-child(4),
 .roster-sheet td:nth-child(4) {
-  min-width: 56px;
+  min-width: 70px;
+  width: 70px;
 }
 
 .sheet-shell {
