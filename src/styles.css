@@ -1,9 +1,9 @@
 :root {
   color: #172033;
   background:
-    radial-gradient(circle at top left, rgba(245, 158, 11, 0.22), transparent 32%),
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 28%),
-    linear-gradient(180deg, #fffdf8 0%, #f5f7fb 100%);
+    radial-gradient(circle at top left, rgba(148, 163, 184, 0.2), transparent 34%),
+    radial-gradient(circle at top right, rgba(191, 219, 254, 0.3), transparent 30%),
+    linear-gradient(180deg, #f8fbff 0%, #eef3f9 100%);
   font-family:
     "Noto Sans TC",
     "PingFang TC",
@@ -204,7 +204,7 @@ button {
 
 .panel-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) minmax(280px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -610,5 +610,48 @@ tbody tr.is-selected {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sheet-playground {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .sheet-playground th,
+  .sheet-playground td {
+    font-size: 0.92rem;
+  }
+
+  .sheet-playground th {
+    padding: 8px 6px;
+  }
+
+  .sheet-cell,
+  .sheet-input {
+    min-height: 40px;
+    padding: 8px 6px;
+    font-size: 0.92rem;
+  }
+
+  .table-editor {
+    min-width: 860px;
+  }
+
+  .table-editor th,
+  .table-editor td {
+    padding: 10px 8px;
+    font-size: 0.88rem;
+  }
+
+  .table-editor td {
+    min-width: 80px;
+  }
+
+  .cell-display,
+  .table-editor input {
+    min-height: 36px;
+    padding: 7px 8px;
+    border-radius: 10px;
+    font-size: 0.88rem;
   }
 }

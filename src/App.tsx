@@ -676,15 +676,6 @@ export default function App() {
                 </table>
               </div>
             </section>
-            <section className="panel side-panel">
-              <h2>使用方式</h2>
-              <ul className="plain-list">
-                <li>這一頁預設是列表檢視，不會整排都變成表單。</li>
-                <li>點一下任一格才會進入編輯，按 Enter 或點別處就收起來。</li>
-                <li>勾選「只看未完成學生」後，會列出六項成績中仍有缺漏的學生。</li>
-                <li>如果你想只專注調整某一個項目，請改用單項編輯頁。</li>
-              </ul>
-            </section>
           </>
         ) : null}
 
@@ -740,14 +731,6 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
-            </section>
-            <section className="panel side-panel">
-              <h2>適用情境</h2>
-              <ul className="plain-list">
-                <li>只想調整某一項分數，不想被其他欄位干擾。</li>
-                <li>這一頁比整表編輯更聚焦，也更接近單欄批次處理。</li>
-                <li>適合老師在同一個測驗項目下，快速補完整班資料。</li>
-              </ul>
             </section>
           </>
         ) : null}
@@ -816,14 +799,6 @@ export default function App() {
                   刪除目前選取
                 </button>
               </div>
-            </section>
-            <section className="panel side-panel">
-              <h2>編輯規則</h2>
-              <ul className="plain-list">
-                <li>網頁是唯一正式編輯來源。</li>
-                <li>匯出的 Excel 只做檢視、備份、列印與攜帶。</li>
-                <li>若要快速修改整班資料，請使用資料表編輯或單項編輯頁。</li>
-              </ul>
             </section>
           </>
         ) : null}
@@ -978,17 +953,6 @@ export default function App() {
                 </div>
               </div>
             </section>
-            <section className="panel side-panel">
-              <h2>使用方式</h2>
-              <ul className="plain-list">
-                <li>這裡只保留一份目前名冊，不再管理多個班級清單。</li>
-                <li>名冊現在改成 Excel 風格表格，可直接逐格輸入姓名、身高與體重。</li>
-                <li>支援從 Google Sheets 或 Excel 直接貼上多列多欄資料。</li>
-                <li>按 Enter 會跳到下一列同欄，Shift + Enter 會跳到上一列。</li>
-                <li>按「儲存」後，會用名冊建立或對齊目前這份測驗資料。</li>
-                <li>如果要切換班級，建議直接匯入該班先前存好的整份資料。</li>
-              </ul>
-            </section>
           </>
         ) : null}
 
@@ -1024,35 +988,6 @@ export default function App() {
               </div>
               <RadarChart labels={data.itemLabels} record={selectedRecord} />
             </section>
-            <section className="panel side-panel">
-              <h2>分析摘要</h2>
-              {selectedRecord ? (
-                <dl className="detail-list">
-                  <div>
-                    <dt>學生姓名</dt>
-                    <dd>{selectedRecord.studentName}</dd>
-                  </div>
-                  <div>
-                    <dt>身高</dt>
-                    <dd>{selectedRecord.height || "無"}</dd>
-                  </div>
-                  <div>
-                    <dt>體重</dt>
-                    <dd>{selectedRecord.weight || "無"}</dd>
-                  </div>
-                  <div>
-                    <dt>最高項目</dt>
-                    <dd>{getTopLabel(selectedRecord)}</dd>
-                  </div>
-                  <div>
-                    <dt>評語</dt>
-                    <dd>{selectedRecord.comment || "無"}</dd>
-                  </div>
-                </dl>
-              ) : (
-                <p>請先從檢視總表選一筆資料。</p>
-              )}
-            </section>
           </>
         ) : null}
 
@@ -1071,15 +1006,6 @@ export default function App() {
                 rosterName={data.rosterName}
                 testDate={data.testDate}
               />
-            </section>
-            <section className="panel side-panel">
-              <h2>目前能力</h2>
-              <ul className="plain-list">
-                <li>畫布比例固定為 A4 直式。</li>
-                <li>會直接帶入目前選到學生的雷達圖與基本資訊。</li>
-                <li>可以再往上疊文字與圖片圖層。</li>
-                <li>按按鈕會直接下載真正的 PDF 檔。</li>
-              </ul>
             </section>
           </>
         ) : null}
@@ -1112,14 +1038,6 @@ export default function App() {
                   />
                 </label>
               </div>
-            </section>
-            <section className="panel side-panel">
-              <h2>使用方式</h2>
-              <ul className="plain-list">
-                <li>PDF 適合列印、存檔與交給家長或行政單位查看。</li>
-                <li>Excel 仍然保留給備份、搬移與重新匯入使用。</li>
-                <li>若匯入的 Excel 缺少 `_system` 工作表，系統會拒絕載入。</li>
-              </ul>
             </section>
           </>
         ) : null}
