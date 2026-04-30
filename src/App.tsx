@@ -215,7 +215,7 @@ export default function App() {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [rosterDraft, rosterZoomMode]);
+  }, [activeTab, rosterDraft, rosterZoomMode]);
 
   useEffect(() => {
     const nextViewport = tableViewportRef.current;
@@ -239,7 +239,7 @@ export default function App() {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [tableRecords, tableZoomMode, data.itemLabels]);
+  }, [activeTab, tableRecords, tableZoomMode, data.itemLabels]);
 
   useEffect(() => {
     const nextViewport = metricViewportRef.current;
@@ -263,7 +263,7 @@ export default function App() {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [data.records, activeMetric, metricZoomMode, activeMetricLabel]);
+  }, [activeTab, data.records, activeMetric, metricZoomMode, activeMetricLabel]);
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
