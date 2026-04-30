@@ -126,6 +126,9 @@ export default function App() {
     rowIndex: number;
     columnIndex: number;
   } | null>(null);
+  const [rosterSizeInput, setRosterSizeInput] = useState(() =>
+    String(data.rosterEntries.length || 1),
+  );
   const [rosterZoomMode, setRosterZoomMode] = useState<SheetZoomMode>("fit");
   const [tableZoomMode, setTableZoomMode] = useState<SheetZoomMode>("fit");
   const [rosterViewportWidth, setRosterViewportWidth] = useState(0);
@@ -145,6 +148,10 @@ export default function App() {
   useEffect(() => {
     setRosterDraft(data.rosterEntries.length ? data.rosterEntries : [makeEmptyRosterEntry()]);
   }, [data.rosterEntries]);
+
+  useEffect(() => {
+    setRosterSizeInput(String(Math.max(rosterDraft.length, 1)));
+  }, [rosterDraft.length]);
 
   const selectedRecord = useMemo(
     () => data.records.find((record) => record.id === selectedId) ?? null,
@@ -354,6 +361,51 @@ export default function App() {
 
   function addRosterRow(): void {
     setRosterDraft((current) => [...current, makeEmptyRosterEntry()]);
+  }
+
+  function applyRosterSize(): void {
+    const nextCount = Math.max(1, Math.floor(Number(rosterSizeInput) || 0));
+    const currentCount = rosterDraft.length;
+
+    if (nextCount === currentCount) {
+      setRosterSizeInput(String(nextCount));
+      return;
+    }
+
+    if (nextCount > currentCount) {
+      setRosterDraft((current) => [
+        ...current,
+        ...Array.from({ length: nextCount - currentCount }, () => makeEmptyRosterEntry()),
+      ]);
+      setRosterSizeInput(String(nextCount));
+      return;
+    }
+
+    const removedRows = rosterDraft.slice(nextCount);
+    const removedRowsHaveData = removedRows.some(
+      (entry) => entry.studentName.trim() || entry.height.trim() || entry.weight.trim(),
+    );
+    const recordOverflowRisk = data.records.length > nextCount;
+
+    if (removedRowsHaveData || recordOverflowRisk) {
+      const confirmed = window.confirm(
+        "縮減班級人數後，超出人數的名冊列將被移除；如果之後按下「儲存」，也可能刪除對應的測驗資料。要繼續嗎？",
+      );
+      if (!confirmed) {
+        setRosterSizeInput(String(currentCount));
+        return;
+      }
+    }
+
+    setRosterDraft((current) => current.slice(0, nextCount));
+    setRosterActiveCell((current) => {
+      if (!current) {
+        return null;
+      }
+
+      return current.rowIndex >= nextCount ? null : current;
+    });
+    setRosterSizeInput(String(nextCount));
   }
 
   function applyGridPaste(
@@ -990,13 +1042,29 @@ export default function App() {
               </div>
 
               <div className="roster-editor">
-                <label className="metric-label-editor">
-                  名冊名稱
-                  <input
-                    onChange={(event) => updateRosterName(event.target.value)}
-                    value={data.rosterName}
-                  />
-                </label>
+                <div className="roster-settings">
+                  <label className="metric-label-editor">
+                    班級人數
+                    <input
+                      inputMode="numeric"
+                      min="1"
+                      onChange={(event) => setRosterSizeInput(event.target.value)}
+                      type="number"
+                      value={rosterSizeInput}
+                    />
+                  </label>
+                  <button
+                    className="secondary-button"
+                    onClick={applyRosterSize}
+                    type="button"
+                  >
+                    套用人數
+                  </button>
+                </div>
+
+                <div className="roster-hint">
+                  減少人數時會先提醒你，因為之後儲存名冊可能刪除超出人數的學生資料。
+                </div>
 
                 <div className="sheet-shell">
                   {renderSheetZoomToolbar(rosterZoomMode, setRosterZoomMode)}
@@ -1009,11 +1077,11 @@ export default function App() {
                       }}
                     >
                       <table
-                      className="sheet-playground roster-sheet"
-                      ref={rosterTableRef}
-                      style={{
-                        transform: `scale(${rosterScale})`,
-                        transformOrigin: "top left",
+                        className="sheet-playground roster-sheet"
+                        ref={rosterTableRef}
+                        style={{
+                          transform: `scale(${rosterScale})`,
+                          transformOrigin: "top left",
                         }}
                       >
                         <thead>
