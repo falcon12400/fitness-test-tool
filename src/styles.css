@@ -334,8 +334,8 @@ button {
 
 .roster-sheet th:nth-child(2),
 .roster-sheet td:nth-child(2) {
-  min-width: 128px;
-  width: 128px;
+  min-width: 116px;
+  width: 116px;
 }
 
 .roster-sheet th:nth-child(3),
@@ -421,7 +421,19 @@ button {
   background: #ffffff;
 }
 
+.sheet-playground .is-frozen-column-secondary {
+  position: sticky;
+  left: 36px;
+  z-index: 2;
+  background: #ffffff;
+}
+
 .sheet-playground thead .is-frozen-column {
+  z-index: 4;
+  background: #f8fafc;
+}
+
+.sheet-playground thead .is-frozen-column-secondary {
   z-index: 4;
   background: #f8fafc;
 }
@@ -516,6 +528,10 @@ tbody tr.is-selected {
 
 .summary-sheet tbody tr.is-selected .is-frozen-column {
   background: #ecfeff;
+}
+
+.roster-sheet tbody tr .is-frozen-column-secondary {
+  background: #ffffff;
 }
 
 .table-editor tbody tr {

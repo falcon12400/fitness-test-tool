@@ -1291,7 +1291,7 @@ export default function App() {
                         <thead>
                           <tr>
                             <th className="is-frozen-column">#</th>
-                            <th>姓名</th>
+                            <th className="is-frozen-column-secondary">姓名</th>
                             <th>身高</th>
                             <th>體重</th>
                           </tr>
@@ -1300,7 +1300,7 @@ export default function App() {
                           {rosterDraft.map((entry, index) => (
                             <tr key={entry.id}>
                               <td className="is-frozen-column">{index + 1}</td>
-                              <td>
+                              <td className="is-frozen-column-secondary">
                                 {rosterActiveCell?.rowIndex === index &&
                                 rosterActiveCell?.columnIndex === 0 ? (
                                   <input
