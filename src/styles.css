@@ -280,16 +280,6 @@ button {
   flex-wrap: wrap;
 }
 
-.sheet-debug {
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  word-break: break-all;
-}
-
 .sheet-zoom-button {
   border: 1px solid #d6dbe5;
   border-radius: 999px;
@@ -309,10 +299,15 @@ button {
 .sheet-viewport {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .sheet-zoom-stage {
   position: relative;
+}
+
+.sheet-viewport-capped {
+  max-height: 470px;
 }
 
 .sheet-playground th,
