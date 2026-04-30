@@ -138,6 +138,9 @@ export default function App() {
   const [rosterNaturalWidth, setRosterNaturalWidth] = useState(640);
   const [tableNaturalWidth, setTableNaturalWidth] = useState(1120);
   const [metricNaturalWidth, setMetricNaturalWidth] = useState(520);
+  const [rosterScrollLeft, setRosterScrollLeft] = useState(0);
+  const [tableScrollLeft, setTableScrollLeft] = useState(0);
+  const [metricScrollLeft, setMetricScrollLeft] = useState(0);
   const rosterViewportRef = useRef<HTMLDivElement | null>(null);
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
   const metricViewportRef = useRef<HTMLDivElement | null>(null);
@@ -771,6 +774,15 @@ export default function App() {
     }
   }
 
+  function handleViewportScroll(
+    viewport: HTMLDivElement | null,
+    scaledWidth: number,
+    setScrollLeft: (value: number) => void,
+  ): void {
+    clampViewportScroll(viewport, scaledWidth);
+    setScrollLeft(viewport?.scrollLeft ?? 0);
+  }
+
   const rosterScale = resolveSheetScale(
     rosterZoomMode,
     rosterViewportWidth,
@@ -834,6 +846,22 @@ export default function App() {
             {option.label}
           </button>
         ))}
+      </div>
+    );
+  }
+
+  function renderSheetDebugInfo(values: {
+    viewportWidth: number;
+    naturalWidth: number;
+    scale: number;
+    scrollLeft: number;
+  }) {
+    const scaledWidth = values.naturalWidth * values.scale;
+    const maxScrollLeft = Math.max(0, scaledWidth - values.viewportWidth);
+
+    return (
+      <div className="sheet-debug">
+        {`vw:${values.viewportWidth.toFixed(1)} | nw:${values.naturalWidth.toFixed(1)} | scale:${values.scale.toFixed(3)} | sw:${scaledWidth.toFixed(1)} | max:${maxScrollLeft.toFixed(1)} | left:${values.scrollLeft.toFixed(1)}`}
       </div>
     );
   }
@@ -909,12 +937,19 @@ export default function App() {
               </div>
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(tableZoomMode, setTableZoomMode)}
+                {renderSheetDebugInfo({
+                  viewportWidth: tableViewportWidth,
+                  naturalWidth: tableNaturalWidth,
+                  scale: tableScale,
+                  scrollLeft: tableScrollLeft,
+                })}
                 <div
                   className="sheet-viewport table-wrap"
                   onScroll={() =>
-                    clampViewportScroll(
+                    handleViewportScroll(
                       tableViewportRef.current,
                       tableNaturalWidth * tableScale,
+                      setTableScrollLeft,
                     )
                   }
                   ref={tableViewportRef}
@@ -1005,12 +1040,19 @@ export default function App() {
 
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(metricZoomMode, setMetricZoomMode)}
+                {renderSheetDebugInfo({
+                  viewportWidth: metricViewportWidth,
+                  naturalWidth: metricNaturalWidth,
+                  scale: metricScale,
+                  scrollLeft: metricScrollLeft,
+                })}
                 <div
                   className="sheet-viewport table-wrap"
                   onScroll={() =>
-                    clampViewportScroll(
+                    handleViewportScroll(
                       metricViewportRef.current,
                       metricNaturalWidth * metricScale,
+                      setMetricScrollLeft,
                     )
                   }
                   ref={metricViewportRef}
@@ -1168,12 +1210,19 @@ export default function App() {
 
                 <div className="sheet-shell">
                   {renderSheetZoomToolbar(rosterZoomMode, setRosterZoomMode)}
+                  {renderSheetDebugInfo({
+                    viewportWidth: rosterViewportWidth,
+                    naturalWidth: rosterNaturalWidth,
+                    scale: rosterScale,
+                    scrollLeft: rosterScrollLeft,
+                  })}
                   <div
                     className="sheet-viewport table-wrap"
                     onScroll={() =>
-                      clampViewportScroll(
+                      handleViewportScroll(
                         rosterViewportRef.current,
                         rosterNaturalWidth * rosterScale,
+                        setRosterScrollLeft,
                       )
                     }
                     ref={rosterViewportRef}
