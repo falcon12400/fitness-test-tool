@@ -748,13 +748,14 @@ export default function App() {
     mode: SheetZoomMode,
     viewportWidth: number,
     baseWidth: number,
+    minimumFitScale = 0,
   ): number {
     if (mode === "fit") {
       if (!viewportWidth) {
         return 1;
       }
 
-      return Math.min(1, viewportWidth / baseWidth);
+      return Math.max(minimumFitScale, Math.min(1, viewportWidth / baseWidth));
     }
 
     return mode;
@@ -811,6 +812,7 @@ export default function App() {
     rosterZoomMode,
     rosterViewportWidth,
     rosterNaturalWidth,
+    1,
   );
   const tableScale = resolveSheetScale(
     tableZoomMode,
