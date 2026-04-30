@@ -757,6 +757,20 @@ export default function App() {
     }
   }
 
+  function clampViewportScroll(
+    viewport: HTMLDivElement | null,
+    scaledWidth: number,
+  ): void {
+    if (!viewport) {
+      return;
+    }
+
+    const maxScrollLeft = Math.max(0, scaledWidth - viewport.clientWidth);
+    if (viewport.scrollLeft > maxScrollLeft) {
+      viewport.scrollLeft = maxScrollLeft;
+    }
+  }
+
   const rosterScale = resolveSheetScale(
     rosterZoomMode,
     rosterViewportWidth,
@@ -895,7 +909,16 @@ export default function App() {
               </div>
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(tableZoomMode, setTableZoomMode)}
-                <div className="sheet-viewport table-wrap" ref={tableViewportRef}>
+                <div
+                  className="sheet-viewport table-wrap"
+                  onScroll={() =>
+                    clampViewportScroll(
+                      tableViewportRef.current,
+                      tableNaturalWidth * tableScale,
+                    )
+                  }
+                  ref={tableViewportRef}
+                >
                   <div
                     className="sheet-zoom-stage"
                     style={{
@@ -982,7 +1005,16 @@ export default function App() {
 
               <div className="sheet-shell">
                 {renderSheetZoomToolbar(metricZoomMode, setMetricZoomMode)}
-                <div className="sheet-viewport table-wrap" ref={metricViewportRef}>
+                <div
+                  className="sheet-viewport table-wrap"
+                  onScroll={() =>
+                    clampViewportScroll(
+                      metricViewportRef.current,
+                      metricNaturalWidth * metricScale,
+                    )
+                  }
+                  ref={metricViewportRef}
+                >
                   <div
                     className="sheet-zoom-stage"
                     style={{
@@ -1136,7 +1168,16 @@ export default function App() {
 
                 <div className="sheet-shell">
                   {renderSheetZoomToolbar(rosterZoomMode, setRosterZoomMode)}
-                  <div className="sheet-viewport table-wrap" ref={rosterViewportRef}>
+                  <div
+                    className="sheet-viewport table-wrap"
+                    onScroll={() =>
+                      clampViewportScroll(
+                        rosterViewportRef.current,
+                        rosterNaturalWidth * rosterScale,
+                      )
+                    }
+                    ref={rosterViewportRef}
+                  >
                     <div
                       className="sheet-zoom-stage"
                       style={{

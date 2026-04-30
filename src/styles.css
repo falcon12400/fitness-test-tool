@@ -303,7 +303,6 @@ button {
 
 .sheet-zoom-stage {
   position: relative;
-  overflow: hidden;
 }
 
 .sheet-playground th,
