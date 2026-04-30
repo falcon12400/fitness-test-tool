@@ -245,6 +245,42 @@ button {
   min-width: 640px;
 }
 
+.sheet-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.sheet-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sheet-zoom-button {
+  border: 1px solid #d6dbe5;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #ffffff;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.sheet-zoom-button.is-active {
+  border-color: #115e59;
+  background: #0f766e;
+  color: #f8fafc;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
+}
+
+.sheet-viewport {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-zoom-stage {
+  position: relative;
+}
+
 .sheet-playground th,
 .sheet-playground td {
   padding: 0;
@@ -310,6 +346,11 @@ tbody tr.is-selected {
   min-width: 1120px;
 }
 
+.summary-sheet {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 .table-editor thead th {
   position: sticky;
   top: 0;
@@ -324,6 +365,15 @@ tbody tr.is-selected {
 
 .table-editor td {
   min-width: 110px;
+}
+
+.summary-sheet th,
+.summary-sheet td {
+  border: 1px solid #e2e8f0;
+}
+
+.summary-sheet thead th {
+  border-bottom: 1px solid #dbe4ee;
 }
 
 .table-editor tbody tr {
@@ -610,6 +660,15 @@ tbody tr.is-selected {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sheet-toolbar {
+    gap: 6px;
+  }
+
+  .sheet-zoom-button {
+    padding: 7px 10px;
+    font-size: 0.82rem;
   }
 
   .sheet-playground {

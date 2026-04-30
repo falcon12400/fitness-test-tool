@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 import A4CanvasBoard from "./A4CanvasBoard";
 import RadarChart from "./RadarChart";
@@ -23,6 +23,8 @@ type ActiveCell = {
   field: EditableField;
 } | null;
 
+type SheetZoomMode = "fit" | 0.8 | 0.9 | 1 | 1.1;
+
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "roster", label: "編輯名冊" },
   { key: "metric", label: "測驗項目" },
@@ -40,6 +42,17 @@ const scoreFields: FitnessField[] = [
   "item5",
   "item6",
 ];
+
+const SHEET_ZOOM_OPTIONS: Array<{ label: string; value: SheetZoomMode }> = [
+  { label: "符合頁寬", value: "fit" },
+  { label: "80%", value: 0.8 },
+  { label: "90%", value: 0.9 },
+  { label: "100%", value: 1 },
+  { label: "110%", value: 1.1 },
+];
+
+const ROSTER_SHEET_BASE_WIDTH = 640;
+const TABLE_SHEET_BASE_WIDTH = 1120;
 
 function hasIncompleteScore(record: FitnessRecord): boolean {
   return scoreFields.some(
@@ -116,6 +129,14 @@ export default function App() {
     rowIndex: number;
     columnIndex: number;
   } | null>(null);
+  const [rosterZoomMode, setRosterZoomMode] = useState<SheetZoomMode>("fit");
+  const [tableZoomMode, setTableZoomMode] = useState<SheetZoomMode>("fit");
+  const [rosterViewportWidth, setRosterViewportWidth] = useState(0);
+  const [tableViewportWidth, setTableViewportWidth] = useState(0);
+  const rosterViewportRef = useRef<HTMLDivElement | null>(null);
+  const tableViewportRef = useRef<HTMLDivElement | null>(null);
+  const previousRosterScaleRef = useRef(1);
+  const previousTableScaleRef = useRef(1);
   useEffect(() => {
     saveAppData(data);
   }, [data]);
@@ -154,6 +175,48 @@ export default function App() {
 
     return data.records;
   }, [activeTab, data.records, tableRecords]);
+
+  useEffect(() => {
+    const nextViewport = rosterViewportRef.current;
+    if (!nextViewport) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      setRosterViewportWidth(entry.contentRect.width);
+    });
+    resizeObserver.observe(nextViewport);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextViewport = tableViewportRef.current;
+    if (!nextViewport) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      setTableViewportWidth(entry.contentRect.width);
+    });
+    resizeObserver.observe(nextViewport);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   function selectRecord(record: FitnessRecord): void {
     setSelectedId(record.id);
@@ -566,6 +629,98 @@ export default function App() {
     );
   }
 
+  function resolveSheetScale(
+    mode: SheetZoomMode,
+    viewportWidth: number,
+    baseWidth: number,
+  ): number {
+    if (mode === "fit") {
+      if (!viewportWidth) {
+        return 1;
+      }
+
+      return Math.min(1, viewportWidth / baseWidth);
+    }
+
+    return mode;
+  }
+
+  function preserveViewportPosition(
+    viewport: HTMLDivElement | null,
+    previousScale: number,
+    nextScale: number,
+  ): void {
+    if (!viewport) {
+      return;
+    }
+
+    const previousScrollableWidth = viewport.scrollWidth;
+    const maxScrollLeft = Math.max(0, previousScrollableWidth - viewport.clientWidth);
+    const scrollRatio = maxScrollLeft > 0 ? viewport.scrollLeft / maxScrollLeft : 0;
+
+    requestAnimationFrame(() => {
+      const nextMaxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      viewport.scrollLeft = nextMaxScrollLeft * scrollRatio;
+    });
+
+    if (previousScale === nextScale) {
+      return;
+    }
+  }
+
+  const rosterScale = resolveSheetScale(
+    rosterZoomMode,
+    rosterViewportWidth,
+    ROSTER_SHEET_BASE_WIDTH,
+  );
+  const tableScale = resolveSheetScale(
+    tableZoomMode,
+    tableViewportWidth,
+    TABLE_SHEET_BASE_WIDTH,
+  );
+
+  useEffect(() => {
+    preserveViewportPosition(
+      rosterViewportRef.current,
+      previousRosterScaleRef.current,
+      rosterScale,
+    );
+    previousRosterScaleRef.current = rosterScale;
+  }, [rosterScale]);
+
+  useEffect(() => {
+    preserveViewportPosition(
+      tableViewportRef.current,
+      previousTableScaleRef.current,
+      tableScale,
+    );
+    previousTableScaleRef.current = tableScale;
+  }, [tableScale]);
+
+  function renderSheetZoomToolbar(
+    currentMode: SheetZoomMode,
+    onChange: (nextMode: SheetZoomMode) => void,
+  ) {
+    return (
+      <div className="sheet-toolbar" role="group" aria-label="表格縮放">
+        {SHEET_ZOOM_OPTIONS.map((option) => (
+          <button
+            className={
+              currentMode === option.value
+                ? "sheet-zoom-button is-active"
+                : "sheet-zoom-button"
+            }
+            key={String(option.value)}
+            onClick={() => onChange(option.value)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -635,45 +790,62 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <div className="table-wrap">
-                <table className="table-editor">
-                  <thead>
-                    <tr>
-                      <th>學生姓名</th>
-                      <th>身高</th>
-                      <th>體重</th>
-                      <th>{data.itemLabels[0]}</th>
-                      <th>{data.itemLabels[1]}</th>
-                      <th>{data.itemLabels[2]}</th>
-                      <th>{data.itemLabels[3]}</th>
-                      <th>{data.itemLabels[4]}</th>
-                      <th>{data.itemLabels[5]}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableRecords.map((record) => (
-                      <tr
-                        className={record.id === selectedId ? "is-selected" : ""}
-                        key={record.id}
-                        onClick={() => selectRecord(record)}
-                      >
-                        <td>{renderTableCell(record, "studentName", record.studentName)}</td>
-                        <td>{renderTableCell(record, "height", record.height)}</td>
-                        <td>{renderTableCell(record, "weight", record.weight)}</td>
-                        {scoreFields.map((field) => (
-                          <td key={field}>
-                            {renderTableCell(record, field, record[field], {
-                              inputType: "number",
-                              min: 0,
-                              step: 1,
-                              className: "cell-input-number",
-                            })}
-                          </td>
+              <div className="sheet-shell">
+                {renderSheetZoomToolbar(tableZoomMode, setTableZoomMode)}
+                <div className="sheet-viewport table-wrap" ref={tableViewportRef}>
+                  <div
+                    className="sheet-zoom-stage"
+                    style={{
+                      width: `${TABLE_SHEET_BASE_WIDTH * tableScale}px`,
+                      height: "100%",
+                    }}
+                  >
+                    <table
+                      className="table-editor sheet-playground summary-sheet"
+                      style={{
+                        transform: `scale(${tableScale})`,
+                        transformOrigin: "top left",
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th>學生姓名</th>
+                          <th>身高</th>
+                          <th>體重</th>
+                          <th>{data.itemLabels[0]}</th>
+                          <th>{data.itemLabels[1]}</th>
+                          <th>{data.itemLabels[2]}</th>
+                          <th>{data.itemLabels[3]}</th>
+                          <th>{data.itemLabels[4]}</th>
+                          <th>{data.itemLabels[5]}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableRecords.map((record) => (
+                          <tr
+                            className={record.id === selectedId ? "is-selected" : ""}
+                            key={record.id}
+                            onClick={() => selectRecord(record)}
+                          >
+                            <td>{renderTableCell(record, "studentName", record.studentName)}</td>
+                            <td>{renderTableCell(record, "height", record.height)}</td>
+                            <td>{renderTableCell(record, "weight", record.weight)}</td>
+                            {scoreFields.map((field) => (
+                              <td key={field}>
+                                {renderTableCell(record, field, record[field], {
+                                  inputType: "number",
+                                  min: 0,
+                                  step: 1,
+                                  className: "cell-input-number",
+                                })}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </section>
           </>
@@ -822,117 +994,134 @@ export default function App() {
                   />
                 </label>
 
-                <div className="table-wrap">
-                  <table className="sheet-playground roster-sheet">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>姓名</th>
-                        <th>身高</th>
-                        <th>體重</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rosterDraft.map((entry, index) => (
-                        <tr key={entry.id}>
-                          <td>{index + 1}</td>
-                          <td>
-                            {rosterActiveCell?.rowIndex === index &&
-                            rosterActiveCell?.columnIndex === 0 ? (
-                              <input
-                                autoFocus
-                                className="sheet-input"
-                                onFocus={(event) => event.currentTarget.select()}
-                                onBlur={() => setRosterActiveCell(null)}
-                                onChange={(event) =>
-                                  updateRosterDraftCell(index, 0, event.target.value)
-                                }
-                                onKeyDown={(event) =>
-                                  handleRosterKeyDown(event, index, 0)
-                                }
-                                onPaste={(event) =>
-                                  handleRosterPaste(event, index, 0)
-                                }
-                                value={entry.studentName}
-                              />
-                            ) : (
-                              <button
-                                className="sheet-cell"
-                                onClick={() =>
-                                  setRosterActiveCell({ rowIndex: index, columnIndex: 0 })
-                                }
-                                type="button"
-                              >
-                                {entry.studentName || "—"}
-                              </button>
-                            )}
-                          </td>
-                          <td>
-                            {rosterActiveCell?.rowIndex === index &&
-                            rosterActiveCell?.columnIndex === 1 ? (
-                              <input
-                                autoFocus
-                                className="sheet-input"
-                                onFocus={(event) => event.currentTarget.select()}
-                                onBlur={() => setRosterActiveCell(null)}
-                                onChange={(event) =>
-                                  updateRosterDraftCell(index, 1, event.target.value)
-                                }
-                                onKeyDown={(event) =>
-                                  handleRosterKeyDown(event, index, 1)
-                                }
-                                onPaste={(event) =>
-                                  handleRosterPaste(event, index, 1)
-                                }
-                                value={entry.height}
-                              />
-                            ) : (
-                              <button
-                                className="sheet-cell"
-                                onClick={() =>
-                                  setRosterActiveCell({ rowIndex: index, columnIndex: 1 })
-                                }
-                                type="button"
-                              >
-                                {entry.height || "—"}
-                              </button>
-                            )}
-                          </td>
-                          <td>
-                            {rosterActiveCell?.rowIndex === index &&
-                            rosterActiveCell?.columnIndex === 2 ? (
-                              <input
-                                autoFocus
-                                className="sheet-input"
-                                onFocus={(event) => event.currentTarget.select()}
-                                onBlur={() => setRosterActiveCell(null)}
-                                onChange={(event) =>
-                                  updateRosterDraftCell(index, 2, event.target.value)
-                                }
-                                onKeyDown={(event) =>
-                                  handleRosterKeyDown(event, index, 2)
-                                }
-                                onPaste={(event) =>
-                                  handleRosterPaste(event, index, 2)
-                                }
-                                value={entry.weight}
-                              />
-                            ) : (
-                              <button
-                                className="sheet-cell"
-                                onClick={() =>
-                                  setRosterActiveCell({ rowIndex: index, columnIndex: 2 })
-                                }
-                                type="button"
-                              >
-                                {entry.weight || "—"}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="sheet-shell">
+                  {renderSheetZoomToolbar(rosterZoomMode, setRosterZoomMode)}
+                  <div className="sheet-viewport table-wrap" ref={rosterViewportRef}>
+                    <div
+                      className="sheet-zoom-stage"
+                      style={{
+                        width: `${ROSTER_SHEET_BASE_WIDTH * rosterScale}px`,
+                        height: "100%",
+                      }}
+                    >
+                      <table
+                        className="sheet-playground roster-sheet"
+                        style={{
+                          transform: `scale(${rosterScale})`,
+                          transformOrigin: "top left",
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>姓名</th>
+                            <th>身高</th>
+                            <th>體重</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rosterDraft.map((entry, index) => (
+                            <tr key={entry.id}>
+                              <td>{index + 1}</td>
+                              <td>
+                                {rosterActiveCell?.rowIndex === index &&
+                                rosterActiveCell?.columnIndex === 0 ? (
+                                  <input
+                                    autoFocus
+                                    className="sheet-input"
+                                    onFocus={(event) => event.currentTarget.select()}
+                                    onBlur={() => setRosterActiveCell(null)}
+                                    onChange={(event) =>
+                                      updateRosterDraftCell(index, 0, event.target.value)
+                                    }
+                                    onKeyDown={(event) =>
+                                      handleRosterKeyDown(event, index, 0)
+                                    }
+                                    onPaste={(event) =>
+                                      handleRosterPaste(event, index, 0)
+                                    }
+                                    value={entry.studentName}
+                                  />
+                                ) : (
+                                  <button
+                                    className="sheet-cell"
+                                    onClick={() =>
+                                      setRosterActiveCell({ rowIndex: index, columnIndex: 0 })
+                                    }
+                                    type="button"
+                                  >
+                                    {entry.studentName || "—"}
+                                  </button>
+                                )}
+                              </td>
+                              <td>
+                                {rosterActiveCell?.rowIndex === index &&
+                                rosterActiveCell?.columnIndex === 1 ? (
+                                  <input
+                                    autoFocus
+                                    className="sheet-input"
+                                    onFocus={(event) => event.currentTarget.select()}
+                                    onBlur={() => setRosterActiveCell(null)}
+                                    onChange={(event) =>
+                                      updateRosterDraftCell(index, 1, event.target.value)
+                                    }
+                                    onKeyDown={(event) =>
+                                      handleRosterKeyDown(event, index, 1)
+                                    }
+                                    onPaste={(event) =>
+                                      handleRosterPaste(event, index, 1)
+                                    }
+                                    value={entry.height}
+                                  />
+                                ) : (
+                                  <button
+                                    className="sheet-cell"
+                                    onClick={() =>
+                                      setRosterActiveCell({ rowIndex: index, columnIndex: 1 })
+                                    }
+                                    type="button"
+                                  >
+                                    {entry.height || "—"}
+                                  </button>
+                                )}
+                              </td>
+                              <td>
+                                {rosterActiveCell?.rowIndex === index &&
+                                rosterActiveCell?.columnIndex === 2 ? (
+                                  <input
+                                    autoFocus
+                                    className="sheet-input"
+                                    onFocus={(event) => event.currentTarget.select()}
+                                    onBlur={() => setRosterActiveCell(null)}
+                                    onChange={(event) =>
+                                      updateRosterDraftCell(index, 2, event.target.value)
+                                    }
+                                    onKeyDown={(event) =>
+                                      handleRosterKeyDown(event, index, 2)
+                                    }
+                                    onPaste={(event) =>
+                                      handleRosterPaste(event, index, 2)
+                                    }
+                                    value={entry.weight}
+                                  />
+                                ) : (
+                                  <button
+                                    className="sheet-cell"
+                                    onClick={() =>
+                                      setRosterActiveCell({ rowIndex: index, columnIndex: 2 })
+                                    }
+                                    type="button"
+                                  >
+                                    {entry.weight || "—"}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="button-row">
