@@ -328,22 +328,22 @@ button {
 
 .roster-sheet th:nth-child(1),
 .roster-sheet td:nth-child(1) {
-  min-width: 36px;
-  width: 36px;
+  min-width: 28px;
+  width: 28px;
 }
 
 .roster-sheet th:nth-child(2),
 .roster-sheet td:nth-child(2) {
-  min-width: 70px;
-  width: 70px;
+  min-width: 50px;
+  width: 50px;
 }
 
 .roster-sheet th:nth-child(3),
 .roster-sheet td:nth-child(3),
 .roster-sheet th:nth-child(4),
 .roster-sheet td:nth-child(4) {
-  min-width: 70px;
-  width: 70px;
+  min-width: 50px;
+  width: 50px;
 }
 
 .sheet-shell {
@@ -424,7 +424,7 @@ button {
 
 .sheet-playground .is-frozen-column-secondary {
   position: sticky;
-  left: 36px;
+  left: 28px;
   z-index: 2;
   background: #ffffff;
 }
